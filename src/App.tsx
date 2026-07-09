@@ -26,6 +26,7 @@ import { Message, Achievement, FlowerGameItem } from "./types";
 export default function App() {
   // Current active learning stage (1, 2, or 3)
   const [currentStage, setCurrentStage] = useState<number>(1);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
   // Stage 1: Matching Game State
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
@@ -461,36 +462,36 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfbf7] text-[#2c251e] flex flex-col selection:bg-[#fef08a]" id="app-root-container">
+    <div className="min-h-screen bg-[#fcfbf7] text-[#2c251e] flex flex-col selection:bg-[#fef08a] text-sm" id="app-root-container">
       {/* Header Bar */}
-      <header className="bg-white border-b-2 border-[#eae4cd] px-4 py-3 sticky top-0 z-40" id="app-header">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <header className="bg-white border-b-2 border-[#eae4cd] px-6 py-4 sticky top-0 z-40" id="app-header">
+        <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Logo Brand */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#fef08a] rounded-full border-2 border-[#d49a2a] animate-bounce-slow">
-              <span className="text-2xl">🐝</span>
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-[#fef08a] rounded-full border-2 border-[#d49a2a] animate-bounce-slow">
+              <span className="text-3xl">🐝</span>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold font-sans tracking-tight text-[#1e293b] flex items-center gap-1.5">
+              <h1 className="text-2xl sm:text-3xl font-bold font-sans tracking-tight text-[#1e293b] flex items-center gap-2">
                 Chú Ong Vàng BiBi
-                <span className="text-xs bg-amber-100 text-amber-800 border border-amber-300 font-medium px-2 py-0.5 rounded-full">
+                <span className="text-sm bg-amber-100 text-amber-800 border border-amber-300 font-bold px-3 py-1 rounded-full">
                   Khoa học Lớp 5
                 </span>
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-sm text-slate-500 font-semibold mt-0.5">
                 Sách Kết nối tri thức - Bài 13: Sinh sản của thực vật có hoa (Tiết 1)
               </p>
             </div>
           </div>
 
           {/* Quick Learning Stats / Milestones */}
-          <div className="flex items-center gap-2">
-            <div className="bg-[#fefcbf] border border-[#fef08a] rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-amber-800">
-              <Sparkles className="w-4 h-4 text-amber-600 animate-spin-slow" />
+          <div className="flex items-center gap-3">
+            <div className="bg-[#fefcbf] border border-[#fef08a] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-amber-800 shadow-sm">
+              <Sparkles className="w-4.5 h-4.5 text-amber-600 animate-spin-slow" />
               <span>Chặng {currentStage}/3</span>
             </div>
-            <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-emerald-800">
-              <Trophy className="w-4 h-4 text-emerald-600" />
+            <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-emerald-800 shadow-sm">
+              <Trophy className="w-4.5 h-4.5 text-emerald-600" />
               <span>
                 Thành tích: {achievements.filter((a) => a.unlocked).length}/{achievements.length}
               </span>
@@ -500,18 +501,18 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
       </header>
 
       {/* Main Grid Workspace */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5" id="main-content-layout">
+      <main className="flex-1 w-full px-6 md:px-8 py-6 flex flex-col gap-6" id="main-content-layout">
         
-        {/* LEFT COLUMN: Learn & Interact Interactive Area (7 columns) */}
-        <section className="lg:col-span-7 flex flex-col gap-4" id="learning-workspace-section">
+        {/* LEFT COLUMN: Learn & Interact Interactive Area (takes full width) */}
+        <section className="w-full flex flex-col gap-5" id="learning-workspace-section">
           
           {/* Top Roadmap / Stage Selector */}
-          <div className="bg-white rounded-2xl p-4 border-2 border-[#eae4cd] play-card" id="lesson-roadmap">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-[#fbbf24]" />
+          <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card" id="lesson-roadmap">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3.5 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[#fbbf24]" />
               Lộ trình bài học Khoa học của bé
             </h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {LESSON_STAGES.map((stage) => {
                 const isActive = currentStage === stage.id;
                 const isCompleted = currentStage > stage.id;
@@ -523,7 +524,7 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       setBeeExpression("happy");
                       setTimeout(() => setBeeExpression("normal"), 1500);
                     }}
-                    className={`relative p-2.5 rounded-xl border-2 text-left transition-all duration-300 group ${
+                    className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-300 group ${
                       isActive
                         ? "border-[#fbbf24] bg-amber-50/70 shadow-sm"
                         : isCompleted
@@ -533,14 +534,14 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                     id={`roadmap-stage-btn-${stage.id}`}
                   >
                     {isCompleted && (
-                      <span className="absolute top-1 right-1 bg-emerald-500 text-white rounded-full p-0.5">
-                        <Check className="w-3 h-3 stroke-[3]" />
+                      <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
                       </span>
                     )}
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Chặng {stage.id}
                     </span>
-                    <span className={`block text-xs font-bold leading-tight mt-0.5 ${isActive ? "text-amber-900" : isCompleted ? "text-emerald-950" : "text-slate-600"}`}>
+                    <span className={`block text-sm sm:text-base font-bold leading-tight mt-1 ${isActive ? "text-amber-900" : isCompleted ? "text-emerald-950" : "text-slate-600"}`}>
                       {stage.subtitle}
                     </span>
                   </button>
@@ -548,15 +549,15 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
               })}
             </div>
             {/* Active Stage Quick Info banner */}
-            <div className="mt-3 p-3 bg-[#faf9f3] rounded-xl border border-[#ece7d5] flex items-start gap-2.5">
-              <div className="p-1 bg-white rounded-lg border border-[#e5dfc3] shadow-sm text-lg mt-0.5">
+            <div className="mt-4 p-4 bg-[#faf9f3] rounded-xl border border-[#ece7d5] flex items-start gap-3">
+              <div className="p-1.5 bg-white rounded-lg border border-[#e5dfc3] shadow-sm text-2xl mt-0.5">
                 {currentStage === 1 ? "🔬" : currentStage === 2 ? "🐝" : "🌱"}
               </div>
               <div>
-                <p className="text-xs font-bold text-[#453c30]">
+                <p className="text-sm sm:text-base font-bold text-[#453c30]">
                   {LESSON_STAGES[currentStage - 1].title}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-sm text-slate-500 mt-1">
                   {LESSON_STAGES[currentStage - 1].description}
                 </p>
               </div>
@@ -757,23 +758,23 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                     
                     {activeHotspotId ? (
                       /* Active Question Card overlay when a hotspot is clicked */
-                      <div className="p-4 rounded-xl border-2 border-amber-300 bg-amber-50/50 flex flex-col gap-3 animate-fade-in shadow-sm">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <div className="p-4 rounded-xl border-2 border-amber-300 bg-amber-50/50 flex flex-col gap-3.5 animate-fade-in shadow-sm">
+                        <h4 className="text-sm font-bold uppercase tracking-wider text-amber-800 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-500" />
                           Bé đoán xem đây là bộ phận nào?
                         </h4>
-                        <p className="text-[11px] text-[#453c30] leading-relaxed italic">
+                        <p className="text-xs sm:text-sm text-[#453c30] leading-relaxed italic">
                           "Gợi ý của BiBi: {FLOWER_PARTS.find(p => p.id === activeHotspotId)?.kidsExplanation}"
                         </p>
 
-                        <div className="grid grid-cols-2 gap-2 mt-1">
+                        <div className="grid grid-cols-2 gap-3 mt-1">
                           {FLOWER_PARTS.map((part) => {
                             const isWrong = wrongGuessId === part.id;
                             return (
                               <button
                                 key={part.id}
                                 onClick={() => handleStage1Guess(part.id)}
-                                className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-200 text-center ${
+                                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all duration-200 text-center ${
                                   isWrong
                                     ? "bg-rose-100 border-rose-400 text-rose-800 animate-shake"
                                     : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-400 cursor-pointer active:translate-y-0.5"
@@ -787,37 +788,37 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       </div>
                     ) : (
                       /* Static guidance or correct feedback */
-                      <div className="flex flex-col gap-3">
-                        <div className="p-3 bg-slate-50 rounded-xl border border-[#eae4cd] text-xs text-slate-600 leading-normal">
-                          <strong className="text-amber-700 block mb-0.5">Nhiệm vụ thiết kế:</strong>
+                      <div className="flex flex-col gap-3.5">
+                        <div className="p-4 bg-slate-50 rounded-xl border border-[#eae4cd] text-sm text-slate-600 leading-normal">
+                          <strong className="text-amber-700 block mb-1">Nhiệm vụ thiết kế:</strong>
                           Click vào các dấu hỏi <strong className="text-amber-600 font-bold">?</strong> trên mô hình bông hoa để bắt đầu ghép tên đúng.
                         </div>
 
                         {stage1Feedback && (
-                          <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 font-medium leading-relaxed animate-fade-in">
+                          <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm text-emerald-800 font-bold leading-relaxed animate-fade-in">
                             {stage1Feedback}
                           </div>
                         )}
 
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-2">
                           {FLOWER_PARTS.map((part) => {
                             const isSolved = solvedParts.includes(part.id);
                             return (
                               <div
                                 key={part.id}
-                                className={`flex items-center justify-between p-2 rounded-xl border-2 transition-all duration-200 ${
+                                className={`flex items-center justify-between p-2.5 rounded-xl border-2 transition-all duration-200 ${
                                   isSolved
                                     ? "bg-emerald-50/40 border-emerald-300 text-emerald-950"
                                     : "border-slate-100 bg-slate-50 opacity-60 text-slate-400"
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white font-bold bg-slate-300 ${isSolved ? "bg-emerald-500" : ""}`}>
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-bold bg-slate-300 ${isSolved ? "bg-emerald-500" : ""}`}>
                                     {isSolved ? "✓" : "🔒"}
                                   </span>
-                                  <span className="text-xs font-bold">{part.vietnameseName}</span>
+                                  <span className="text-sm font-bold">{part.vietnameseName}</span>
                                 </div>
-                                <span className="text-[9px] font-semibold text-slate-400 font-mono">{part.name}</span>
+                                <span className="text-xs font-semibold text-slate-400 font-mono">{part.name}</span>
                               </div>
                             );
                           })}
@@ -1085,8 +1086,8 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                           </span>
                           
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-xs font-bold text-slate-800">{step.title}</h4>
-                            <p className="text-[10px] text-slate-500 mt-0.5 leading-normal">
+                            <h4 className="text-sm font-bold text-slate-800">{step.title}</h4>
+                            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-normal">
                               {step.description}
                             </p>
                           </div>
@@ -1096,33 +1097,33 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                             <button
                               disabled={idx === 0}
                               onClick={() => handleMoveStep(idx, "up")}
-                              className={`p-1 rounded border ${
+                              className={`p-1.5 rounded border ${
                                 idx === 0 
                                   ? "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed" 
                                   : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50 cursor-pointer"
                               }`}
                               title="Di chuyển lên"
                             >
-                              <ArrowUp className="w-3 h-3" />
+                              <ArrowUp className="w-3.5 h-3.5" />
                             </button>
                             <button
                               disabled={idx === scrambledSteps.length - 1}
                               onClick={() => handleMoveStep(idx, "down")}
-                              className={`p-1 rounded border ${
+                              className={`p-1.5 rounded border ${
                                 idx === scrambledSteps.length - 1 
                                   ? "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed" 
                                   : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50 cursor-pointer"
                               }`}
                               title="Di chuyển xuống"
                             >
-                              <ArrowDown className="w-3 h-3" />
+                              <ArrowDown className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
                       ))}
 
                       {sequencingFeedback && (
-                        <div className={`p-3 rounded-xl border text-xs font-medium leading-relaxed animate-fade-in ${
+                        <div className={`p-4 rounded-xl border text-sm font-semibold leading-relaxed animate-fade-in ${
                           sequencingFeedback.includes("Tuyệt")
                             ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                             : "bg-amber-50 border-amber-200 text-amber-800"
@@ -1132,10 +1133,10 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       )}
                     </div>
 
-                    <div className="border-t border-[#f1ece1] pt-3.5 mt-3 flex justify-end">
+                    <div className="border-t border-[#f1ece1] pt-4 mt-3 flex justify-end">
                       <button
                         onClick={handleCheckSequencing}
-                        className="px-5 py-2.5 rounded-xl border-2 border-emerald-600 bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all cursor-pointer shadow-sm active:translate-y-0.5"
+                        className="px-6 py-3 rounded-xl border-2 border-emerald-600 bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 transition-all cursor-pointer shadow-md active:translate-y-0.5"
                       >
                         Kiểm Tra Quy Trình 🔍
                       </button>
@@ -1246,12 +1247,12 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       
                       {simulationStep === 1 && (
                         <div className="flex flex-col items-center gap-1.5 w-full">
-                          <p className="text-[11px] text-slate-600 font-semibold">
+                          <p className="text-sm text-slate-600 font-bold">
                             💬 BiBi: "Bé ơi, giúp tớ bay sang Nhị hoa đực lấy phấn vàng đi nhé!"
                           </p>
                           <button
                             onClick={() => handleBeeAction("collect")}
-                            className="w-full max-w-xs py-2 px-4 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs shadow-sm cursor-pointer active:translate-y-0.5"
+                            className="w-full max-w-xs py-3 px-6 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
                           >
                             🐝 Bay đi lấy phấn hoa ➔
                           </button>
@@ -1260,12 +1261,12 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
 
                       {simulationStep === 2 && (
                         <div className="flex flex-col items-center gap-1.5 w-full">
-                          <p className="text-[11px] text-emerald-800 font-semibold animate-pulse">
+                          <p className="text-sm text-emerald-800 font-semibold animate-pulse">
                             ✨ BiBi: "Phấn hoa đã dính đầy mình rồi! Giờ bay sang đầu Nhụy hoa cái thôi!"
                           </p>
                           <button
                             onClick={() => handleBeeAction("pollinate")}
-                            className="w-full max-w-xs py-2 px-4 rounded-xl border-2 border-emerald-600 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-sm cursor-pointer active:translate-y-0.5"
+                            className="w-full max-w-xs py-3 px-6 rounded-xl border-2 border-emerald-600 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
                           >
                             🐝 Bay sang Nhụy hoa cái để thụ phấn ➔
                           </button>
@@ -1273,14 +1274,14 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       )}
 
                       {simulationStep === 3 && (
-                        <div className="flex flex-col items-center gap-2 w-full animate-fade-in">
-                          <p className="text-xs text-emerald-800 font-bold leading-normal">
+                        <div className="flex flex-col items-center gap-3 w-full animate-fade-in">
+                          <p className="text-sm text-emerald-800 font-bold leading-normal">
                             🎉 Quá kỳ diệu! Cánh hoa cái héo rụng đi, bầu nhụy của hoa mướp đã thụ tinh thành công và phình to phát triển thành một quả mướp căng đầy chứa đầy hạt giống!
                           </p>
-                          <div className="flex gap-2 w-full max-w-xs">
+                          <div className="flex gap-3 w-full max-w-xs">
                             <button
                               onClick={restartSimulation}
-                              className="flex-1 py-2 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold text-[10px] hover:bg-slate-50 cursor-pointer"
+                              className="flex-1 py-2 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
                             >
                               🔄 Chơi lại cuộc phiêu lưu
                             </button>
@@ -1288,7 +1289,7 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                               onClick={() => {
                                 handleQuickQuestion("BiBi ơi, tớ đã giúp cậu thụ phấn và tạo ra quả mướp rồi nè! Khen tớ đi!");
                               }}
-                              className="flex-1 py-2 px-3 rounded-lg bg-amber-400 border border-amber-500 text-amber-950 font-bold text-[10px] hover:bg-amber-300 shadow-sm cursor-pointer"
+                              className="flex-1 py-2 px-3 rounded-lg bg-amber-400 border border-amber-500 text-amber-950 font-bold text-xs hover:bg-amber-300 shadow-sm cursor-pointer"
                             >
                               🏆 Báo công với BiBi
                             </button>
@@ -1303,232 +1304,253 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
           </div>
         </section>
 
-        {/* RIGHT COLUMN: Chat With BiBi Educational Chatbot (5 columns) */}
-        <section className="lg:col-span-5 flex flex-col bg-white rounded-2xl border-2 border-[#eae4cd] play-card overflow-hidden h-[630px] lg:h-auto min-h-[500px]" id="chat-workspace-section">
-          
-          {/* Chat Header containing active BiBi character representation */}
-          <div className="bg-[#faf9f3] p-4 border-b border-[#eae4cd] flex items-center justify-between gap-3" id="chat-header-panel">
-            <div className="flex items-center gap-3">
-              {/* Animated BiBi Character */}
-              <div className="bg-white rounded-full p-1.5 border border-[#e5dfc3] shadow-sm">
-                <BiBiBee expression={beeExpression} size={65} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1">
-                  Trợ lý Ong Vàng BiBi 🐝
-                </h3>
-                <span className="text-[10px] inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium px-2 py-0.5 rounded-full mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Sẵn sàng giải đáp
-                </span>
-              </div>
-            </div>
-
-            {/* Clear Chat Button */}
-            <button
-              onClick={() => {
-                setMessages([
-                  {
-                    id: "welcome-reset",
-                    role: "assistant",
-                    content: "BiBi đã dọn dẹp bàn học sạch sẽ rồi nè! Bạn nhỏ có câu hỏi nào mới về nhị, nhụy hay bài học khoa học lớp 5 không? Hãy trò chuyện cùng BiBi nhé! 🐝🌻",
-                    timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
-                  },
-                ]);
-              }}
-              title="Xóa lịch sử chat để học lại"
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-              id="clear-chat-history-btn"
+        {/* RIGHT COLUMN / FLOATING DRAWER: Chat With BiBi Educational Chatbot */}
+        {isChatOpen && (
+          <>
+            {/* Backdrop blur overlay */}
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-all duration-300"
+              onClick={() => setIsChatOpen(false)}
+            />
+            {/* Slide-out Drawer Panel */}
+            <section 
+              className="fixed right-0 top-0 h-full w-full sm:w-[480px] bg-white z-50 flex flex-col shadow-2xl animate-slide-in-right border-l-2 border-[#eae4cd]"
+              id="chat-workspace-section"
             >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Chat bubbles viewport */}
-          <div
-            ref={chatContainerRef}
-            className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#fdfdfc]"
-            id="chat-messages-viewport"
-          >
-            {messages.map((msg) => {
-              const isAssistant = msg.role === "assistant";
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex items-start gap-2.5 ${isAssistant ? "justify-start" : "justify-end"}`}
-                  id={`chat-msg-row-${msg.id}`}
-                >
-                  {isAssistant && (
-                    <div className="w-7 h-7 bg-amber-100 rounded-full flex items-center justify-center text-sm border border-amber-300 mt-1 flex-shrink-0">
-                      🐝
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
-                      isAssistant
-                        ? "bg-white border border-[#eae4cd] text-[#2c251e] rounded-tl-sm shadow-sm"
-                        : "bg-amber-400 text-amber-950 font-medium rounded-tr-sm self-end"
-                    }`}
-                  >
-                    {/* Preserve markdown style spacing and bold texts */}
-                    <div className="whitespace-pre-line prose max-w-none">
-                      {msg.content}
-                    </div>
-                    <span className="block text-[8px] text-slate-400 mt-1 text-right">
-                      {msg.timestamp}
+              {/* Chat Header containing active BiBi character representation */}
+              <div className="bg-[#faf9f3] p-4 border-b border-[#eae4cd] flex items-center justify-between gap-3" id="chat-header-panel">
+                <div className="flex items-center gap-3">
+                  {/* Animated BiBi Character */}
+                  <div className="bg-white rounded-full p-1.5 border border-[#e5dfc3] shadow-sm">
+                    <BiBiBee expression={beeExpression} size={65} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-1.5">
+                      Trợ lý Ong Vàng BiBi 🐝
+                    </h3>
+                    <span className="text-xs inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Sẵn sàng giải đáp
                     </span>
                   </div>
                 </div>
-              );
-            })}
 
-            {/* Simulated Typings Indicator */}
-            {isSending && (
-              <div className="flex items-start gap-2.5 justify-start animate-pulse" id="bibi-typing-loader">
-                <div className="w-7 h-7 bg-amber-100 rounded-full flex items-center justify-center text-sm border border-amber-300 mt-1">
-                  🐝
-                </div>
-                <div className="bg-white border border-[#eae4cd] rounded-2xl rounded-tl-sm p-3 text-xs text-slate-400">
-                  BiBi đang tìm mật hoa tri thức để trả lời bạn... 🐝✨
+                <div className="flex items-center gap-2">
+                  {/* Clear Chat Button */}
+                  <button
+                    onClick={() => {
+                      setMessages([
+                        {
+                          id: "welcome-reset",
+                          role: "assistant",
+                          content: "BiBi đã dọn dẹp bàn học sạch sẽ rồi nè! Bạn nhỏ có câu hỏi nào mới về nhị, nhụy hay bài học khoa học lớp 5 không? Hãy trò chuyện cùng BiBi nhé! 🐝🌻",
+                          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+                        },
+                      ]);
+                    }}
+                    title="Xóa lịch sử chat để học lại"
+                    className="p-1.5 text-slate-400 hover:text-slate-650 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                    id="clear-chat-history-btn"
+                  >
+                    <RotateCcw className="w-4.5 h-4.5" />
+                  </button>
+                  {/* Close Drawer Button */}
+                  <button
+                    onClick={() => setIsChatOpen(false)}
+                    title="Đóng cửa sổ chat"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Missing API KEY guidance widget */}
-          {apiKeyError && (
-            <div className="px-4 py-2 bg-amber-50 border-y border-amber-200 text-xs text-amber-900 flex items-start gap-2" id="api-key-warning-card">
-              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-bold">Chế độ Học Offline kích hoạt!</p>
-                <p className="text-[10px] text-amber-800 leading-normal">
-                  Chưa cài đặt bí mật <strong>GEMINI_API_KEY</strong> nên BiBi đang dùng bộ câu trả lời thông minh được biên soạn sẵn từ SGK. Bạn nhỏ vẫn thỏa sức hỏi đáp nhé!
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom input area and quick questions helper */}
-          <div className="p-3 bg-[#faf9f3] border-t border-[#eae4cd] space-y-2" id="chat-controls-area">
-            
-            {/* Quick helper question chips based on the active stage */}
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" id="quick-questions-panel">
-              <span className="text-[10px] text-slate-400 font-bold flex-shrink-0 flex items-center gap-1 uppercase">
-                <HelpCircle className="w-3 h-3 text-amber-500" /> Đố BiBi:
-              </span>
-              
-              {currentStage === 1 && (
-                <>
-                  <button
-                    onClick={() => handleQuickQuestion("Nhị hoa và nhụy hoa khác nhau thế nào BiBi ơi?")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    Nhị vs Nhụy khác nhau gì? 🤔
-                  </button>
-                  <button
-                    onClick={() => handleQuickQuestion("Cánh hoa có vai trò gì trong sinh sản vậy BiBi?")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    Vai trò của Cánh hoa 🌸
-                  </button>
-                </>
-              )}
-
-              {currentStage === 2 && (
-                <>
-                  <button
-                    onClick={() => handleQuickQuestion("Tại sao hoa mướp lại là hoa đơn tính vậy BiBi?")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    Tại sao mướp là hoa đơn tính? 🥒
-                  </button>
-                  <button
-                    onClick={() => handleQuickQuestion("Cho tớ 3 ví dụ về hoa lưỡng tính phổ biến với!")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    3 ví dụ hoa lưỡng tính 🌺
-                  </button>
-                </>
-              )}
-
-              {currentStage === 3 && (
-                <>
-                  <button
-                    onClick={() => handleQuickQuestion("Quá trình thụ phấn diễn ra nhờ những gì hả BiBi?")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    Thụ phấn nhờ những ai? 💨
-                  </button>
-                  <button
-                    onClick={() => handleQuickQuestion("Sau khi thụ tinh thì hoa bưởi sẽ biến đổi thế nào?")}
-                    className="text-[10px] bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-2.5 py-1 text-slate-600 font-semibold whitespace-nowrap"
-                  >
-                    Sự biến đổi sau thụ tinh 🍊
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Input Form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-center gap-2"
-              id="bibi-chat-input-form"
-            >
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Nhập câu hỏi về bài học khoa học của bé..."
-                disabled={isSending}
-                className="flex-1 bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-3 py-2 text-xs"
-              />
-              <button
-                type="submit"
-                disabled={isSending || !inputValue.trim()}
-                className="bg-amber-400 hover:bg-amber-500 disabled:bg-slate-100 disabled:text-slate-400 text-amber-950 font-bold p-2.5 rounded-xl border-2 border-transparent disabled:border-transparent hover:border-amber-500 transition-colors cursor-pointer"
-                id="submit-chat-button"
+              {/* Chat bubbles viewport */}
+              <div
+                ref={chatContainerRef}
+                className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#fdfdfc]"
+                id="chat-messages-viewport"
               >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        </section>
+                {messages.map((msg) => {
+                  const isAssistant = msg.role === "assistant";
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex items-start gap-2.5 ${isAssistant ? "justify-start" : "justify-end"}`}
+                      id={`chat-msg-row-${msg.id}`}
+                    >
+                      {isAssistant && (
+                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1 flex-shrink-0">
+                          🐝
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed ${
+                          isAssistant
+                            ? "bg-white border border-[#eae4cd] text-[#2c251e] rounded-tl-sm shadow-sm"
+                            : "bg-amber-400 text-amber-950 font-semibold rounded-tr-sm self-end"
+                        }`}
+                      >
+                        <div className="whitespace-pre-line prose max-w-none">
+                          {msg.content}
+                        </div>
+                        <span className="block text-[9px] text-slate-400 mt-1 text-right">
+                          {msg.timestamp}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Simulated Typings Indicator */}
+                {isSending && (
+                  <div className="flex items-start gap-2.5 justify-start animate-pulse" id="bibi-typing-loader">
+                    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1">
+                      🐝
+                    </div>
+                    <div className="bg-white border border-[#eae4cd] rounded-2xl rounded-tl-sm p-3.5 text-sm text-slate-450">
+                      BiBi đang tìm mật hoa tri thức để trả lời bạn... 🐝✨
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Missing API KEY guidance widget */}
+              {apiKeyError && (
+                <div className="px-4 py-2 bg-amber-50 border-y border-amber-200 text-xs text-amber-900 flex items-start gap-2" id="api-key-warning-card">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-bold text-xs">Chế độ Học Offline kích hoạt!</p>
+                    <p className="text-[11px] text-amber-800 leading-normal">
+                      Chưa cài đặt bí mật <strong>GEMINI_API_KEY</strong> nên BiBi đang dùng bộ câu trả lời thông minh được biên soạn sẵn từ SGK. Bạn nhỏ vẫn thỏa sức hỏi đáp nhé!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom input area and quick questions helper */}
+              <div className="p-4 bg-[#faf9f3] border-t border-[#eae4cd] space-y-2.5" id="chat-controls-area">
+                
+                {/* Quick helper question chips based on the active stage */}
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" id="quick-questions-panel">
+                  <span className="text-xs text-slate-400 font-bold flex-shrink-0 flex items-center gap-1 uppercase">
+                    <HelpCircle className="w-3.5 h-3.5 text-amber-500" /> Đố BiBi:
+                  </span>
+                  
+                  {currentStage === 1 && (
+                    <>
+                      <button
+                        onClick={() => handleQuickQuestion("Nhị hoa và nhụy hoa khác nhau thế nào BiBi ơi?")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        Nhị vs Nhụy khác nhau gì? 🤔
+                      </button>
+                      <button
+                        onClick={() => handleQuickQuestion("Cánh hoa có vai trò gì trong sinh sản vậy BiBi?")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        Vai trò của Cánh hoa 🌸
+                      </button>
+                    </>
+                  )}
+
+                  {currentStage === 2 && (
+                    <>
+                      <button
+                        onClick={() => handleQuickQuestion("Tại sao hoa mướp lại là hoa đơn tính vậy BiBi?")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        Tại sao mướp là hoa đơn tính? 🥒
+                      </button>
+                      <button
+                        onClick={() => handleQuickQuestion("Cho tớ 3 ví dụ về hoa lưỡng tính phổ biến với!")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        3 ví dụ hoa lưỡng tính 🌺
+                      </button>
+                    </>
+                  )}
+
+                  {currentStage === 3 && (
+                    <>
+                      <button
+                        onClick={() => handleQuickQuestion("Quá trình thụ phấn diễn ra nhờ những gì hả BiBi?")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        Thụ phấn nhờ những ai? 💨
+                      </button>
+                      <button
+                        onClick={() => handleQuickQuestion("Sau khi thụ tinh thì hoa bưởi sẽ biến đổi thế nào?")}
+                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                      >
+                        Sự biến đổi sau thụ tinh 🍊
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Input Form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="flex items-center gap-2"
+                  id="bibi-chat-input-form"
+                >
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="Nhập câu hỏi về bài học khoa học của bé..."
+                    disabled={isSending}
+                    className="flex-1 bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-3.5 py-2.5 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSending || !inputValue.trim()}
+                    className="bg-amber-400 hover:bg-amber-500 disabled:bg-slate-100 disabled:text-slate-400 text-amber-950 font-bold p-3 rounded-xl border-2 border-transparent disabled:border-transparent hover:border-amber-500 transition-colors cursor-pointer"
+                    id="submit-chat-button"
+                  >
+                    <Send className="w-4.5 h-4.5" />
+                  </button>
+                </form>
+              </div>
+            </section>
+          </>
+        )}
 
       </main>
 
       {/* Achievements Bảng Thành Tích Row footer panel */}
-      <footer className="bg-white border-t-2 border-[#eae4cd] py-4 px-4 mt-auto" id="app-footer-achievements">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy className="w-5 h-5 text-amber-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <footer className="bg-white border-t-2 border-[#eae4cd] py-5 px-6 mt-auto animate-fade-in" id="app-footer-achievements">
+        <div className="w-full">
+          <div className="flex items-center gap-2.5 mb-3.5">
+            <Trophy className="w-5.5 h-5.5 text-amber-500" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
               Bảng thành tích huy hiệu học tập của bé
             </h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {achievements.map((ach) => (
               <div
                 key={ach.id}
-                className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 transition-all duration-300 ${
+                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 ${
                   ach.unlocked
                     ? "bg-[#faf9f3] border-[#fbbf24] text-[#2c251e] shadow-sm"
-                    : "bg-slate-50/50 border-[#f1ece1] text-slate-400"
+                    : "bg-slate-50/50 border-[#f1ece1] text-slate-450"
                 }`}
                 id={`achievement-card-${ach.id}`}
               >
-                <div className={`text-2xl p-1 bg-white rounded-lg border shadow-sm ${ach.unlocked ? "border-[#fbbf24]" : "border-slate-200"}`}>
+                <div className={`text-3xl p-1.5 bg-white rounded-lg border shadow-sm ${ach.unlocked ? "border-[#fbbf24]" : "border-slate-200"}`}>
                   {ach.unlocked ? ach.emoji : "🔒"}
                 </div>
                 <div className="overflow-hidden">
-                  <h4 className="text-xs font-bold leading-tight truncate">
+                  <h4 className="text-sm font-bold leading-tight truncate">
                     {ach.title}
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5 leading-normal truncate" title={ach.description}>
+                  <p className="text-xs text-slate-400 mt-1 leading-normal truncate" title={ach.description}>
                     {ach.description}
                   </p>
                 </div>
@@ -1537,6 +1559,21 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
           </div>
         </div>
       </footer>
+
+      {/* Floating Chat Button */}
+      {!isChatOpen && (
+        <button
+          onClick={() => {
+            setIsChatOpen(true);
+            setBeeExpression("happy");
+          }}
+          className="fixed bottom-6 right-6 z-40 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-3.5 px-6 rounded-full border-2 border-amber-500 hover:border-amber-600 shadow-xl flex items-center gap-2.5 animate-bounce cursor-pointer transition-all duration-200 active:scale-95"
+          id="floating-chat-toggle-btn"
+        >
+          <span className="text-2xl animate-float">🐝</span>
+          <span className="text-sm font-bold uppercase tracking-wider">Hỏi BiBi 💬</span>
+        </button>
+      )}
     </div>
   );
 }
