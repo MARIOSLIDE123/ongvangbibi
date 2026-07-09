@@ -20,8 +20,15 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { BiBiBee } from "./components/BiBiBee";
-import { FLOWER_PARTS, FLOWER_GAME_ITEMS, LESSON_STAGES, INITIAL_ACHIEVEMENTS } from "./data";
-import { Message, Achievement, FlowerGameItem } from "./types";
+import { 
+  FLOWER_PARTS, 
+  FLOWER_GAME_ITEMS, 
+  LESSON_STAGES, 
+  INITIAL_ACHIEVEMENTS,
+  QUIZ_QUESTIONS_STAGE4,
+  QUIZ_QUESTIONS_STAGE5
+} from "./data";
+import { Message, Achievement, FlowerGameItem, StudentInfo, Attempt, QuizQuestion } from "./types";
 
 export default function App() {
   // Current active learning stage (1, 2, or 3)
@@ -56,6 +63,116 @@ export default function App() {
   const [hasPollen, setHasPollen] = useState<boolean>(false);
   const [isFruitGrown, setIsFruitGrown] = useState<boolean>(false);
   const [simulationStep, setSimulationStep] = useState<number>(1);
+
+  // Onboarding & attempts states
+  const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(() => {
+    const saved = localStorage.getItem("bibi_student_info");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [attempts, setAttempts] = useState<Attempt[]>(() => {
+    const saved = localStorage.getItem("bibi_attempts");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [stage4Score, setStage4Score] = useState<number | null>(null);
+
+  // Stage 4 & 5 Quiz States
+  const [quizIndex, setQuizIndex] = useState<number>(0);
+  const [quizAnswers, setQuizAnswers] = useState<boolean[]>([]);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [filledAnswer, setFilledAnswer] = useState<string>("");
+  const [showQuizFeedback, setShowQuizFeedback] = useState<boolean>(false);
+  const [quizFeedbackCorrect, setQuizFeedbackCorrect] = useState<boolean>(false);
+
+  // Stage 3 pre-simulation question states
+  const [stage3PreQuestionAnswered, setStage3PreQuestionAnswered] = useState<boolean>(false);
+  const [stage3PreQuestionSolved, setStage3PreQuestionSolved] = useState<boolean>(false);
+  const [stage3PreQuestionChoice, setStage3PreQuestionChoice] = useState<string | null>(null);
+
+  // LocalStorage Effects
+  useEffect(() => {
+    if (studentInfo) {
+      localStorage.setItem("bibi_student_info", JSON.stringify(studentInfo));
+    } else {
+      localStorage.removeItem("bibi_student_info");
+    }
+  }, [studentInfo]);
+
+  useEffect(() => {
+    localStorage.setItem("bibi_attempts", JSON.stringify(attempts));
+  }, [attempts]);
+
+  // Audio synthesizer helper
+  const playSynthSound = (type: 'correct' | 'wrong' | 'complete') => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      if (type === 'correct') {
+        // High-pitched double beep chime (C5 to E5)
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+        
+        // Second beep
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
+        gain2.gain.setValueAtTime(0, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
+        osc2.start(ctx.currentTime + 0.08);
+        osc2.stop(ctx.currentTime + 0.22);
+      } else if (type === 'wrong') {
+        // Low buzzy double drop tone
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
+        osc.frequency.linearRampToValueAtTime(150, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+      } else if (type === 'complete') {
+        // Short upbeat fanfare (C5, E5, G5)
+        const notes = [523.25, 659.25, 784.00]; // C5, E5, G5
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+          gain.gain.setValueAtTime(0, ctx.currentTime);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + idx * 0.1 + 0.25);
+          
+          osc.start(ctx.currentTime + idx * 0.1);
+          osc.stop(ctx.currentTime + idx * 0.1 + 0.25);
+        });
+      }
+    } catch (e) {
+      console.warn("Web Audio API error:", e);
+    }
+  };
 
   // Achievements
   const [achievements, setAchievements] = useState<Achievement[]>(INITIAL_ACHIEVEMENTS);
@@ -164,6 +281,7 @@ export default function App() {
     const part = FLOWER_PARTS.find((p) => p.id === activeHotspotId);
 
     if (isCorrect) {
+      playSynthSound("correct");
       const updatedSolved = [...solvedParts, chosenId];
       setSolvedParts(updatedSolved);
       setBeeExpression("happy");
@@ -173,11 +291,13 @@ export default function App() {
 
       if (updatedSolved.length === FLOWER_PARTS.length) {
         unlockAchievement("explorer");
+        playSynthSound("complete");
       }
     } else {
+      playSynthSound("wrong");
       setWrongGuessId(chosenId);
       setBeeExpression("thinking");
-      setStage1Feedback(`Chưa chính xác rồi bé ơi! Hãy nhớ lại gợi ý: ${part?.kidsExplanation}`);
+      setStage1Feedback(`Chưa chính xác rồi ${studentInfo ? studentInfo.name : "bạn nhỏ"} ơi! Hãy nhớ lại gợi ý: ${part?.kidsExplanation}`);
       setTimeout(() => {
         setWrongGuessId(null);
       }, 1000);
@@ -196,6 +316,7 @@ export default function App() {
     setBasketBounce(choice);
 
     if (isCorrect) {
+      playSynthSound("correct");
       setGameScore((prev) => prev + 1);
       setStreakCount((prev) => {
         const next = prev + 1;
@@ -205,33 +326,34 @@ export default function App() {
       setBeeExpression("happy");
       setCurrentFeedback({
         isCorrect: true,
-        text: `Đúng rồi! Tuyệt vời quá bạn ơi! 🎉 ${currentItem.explanation}`,
+        text: `Đúng rồi! Tuyệt vời quá ${studentInfo ? studentInfo.name : "bạn nhỏ"} ơi! 🎉 ${currentItem.explanation}`,
       });
     } else {
+      playSynthSound("wrong");
       setStreakCount(0);
       setBeeExpression("thinking");
       setCurrentFeedback({
         isCorrect: false,
-        text: `Ôi gần đúng rồi nè! Bạn nhỏ thử suy nghĩ lại xem nhé: ${currentItem.description}. ${currentItem.explanation}`,
+        text: `Ôi chưa chính xác rồi nè! ${studentInfo ? studentInfo.name : "Bạn nhỏ"} thử suy nghĩ lại xem nhé: ${currentItem.description}. ${currentItem.explanation}`,
       });
     }
 
     setGameAnswers((prev) => [...prev, { item: currentItem, isCorrect, userChoice: choice }]);
+  };
 
-    // Move to next item after 3.5 seconds (snappier transition)
-    setTimeout(() => {
-      setCurrentFeedback(null);
-      setTossingTo(null);
-      setBasketBounce(null);
-      if (gameIndex < gameItems.length - 1) {
-        setGameIndex((prev) => prev + 1);
-        setBeeExpression("normal");
-      } else {
-        setGameFinished(true);
-        unlockAchievement("sorter");
-        setBeeExpression("happy");
-      }
-    }, 3800);
+  const handleNextGameItem = () => {
+    setCurrentFeedback(null);
+    setTossingTo(null);
+    setBasketBounce(null);
+    if (gameIndex < gameItems.length - 1) {
+      setGameIndex((prev) => prev + 1);
+      setBeeExpression("normal");
+    } else {
+      setGameFinished(true);
+      unlockAchievement("sorter");
+      setBeeExpression("happy");
+      playSynthSound("complete");
+    }
   };
 
   const restartGame = () => {
@@ -261,15 +383,35 @@ export default function App() {
   const handleCheckSequencing = () => {
     const isCorrect = scrambledSteps.every((step, index) => step.id === index + 1);
     if (isCorrect) {
+      playSynthSound("correct");
       setBeeExpression("happy");
-      setSequencingFeedback("Tuyệt cú mèo! 🌟 Bé đã sắp xếp quy trình thụ phấn - thụ tinh - tạo quả hoàn toàn chính xác! Bây giờ, hãy giúp chú ong BiBi thực hiện một chuyến thụ phấn thực tế nhé!");
+      setSequencingFeedback(`Tuyệt cú mèo! 🌟 ${studentInfo ? studentInfo.name : "Bé"} đã sắp xếp quy trình thụ phấn - thụ tinh - tạo quả hoàn toàn chính xác! Bây giờ, hãy trả lời câu hỏi phụ dưới đây để kích hoạt Ong BiBi bay đi thụ phấn nhé!`);
       setTimeout(() => {
+        setStage3PreQuestionAnswered(false);
+        setStage3PreQuestionSolved(false);
+        setStage3PreQuestionChoice(null);
         setStage3SubStage("simulation");
         setSequencingFeedback(null);
       }, 3500);
     } else {
+      playSynthSound("wrong");
       setBeeExpression("thinking");
-      setSequencingFeedback("Chưa chính xác rồi bé ơi! Hãy nhớ trình tự chuẩn: Hạt phấn phải bay đến nhụy trước (Thụ phấn), rồi chui sâu thụ tinh tạo hợp tử (Thụ tinh), rồi mới thành quả ngọt mọng nước (Tạo hạt & quả). Bé thử hoán đổi lại xem!");
+      setSequencingFeedback(`Chưa chính xác rồi ${studentInfo ? studentInfo.name : "bé"} ơi! Hãy nhớ trình tự chuẩn: Hạt phấn tiếp xúc đầu nhụy (Thụ phấn) ➔ Thụ tinh tạo hợp tử (Thụ tinh) ➔ Noãn phát triển thành hạt (Tạo hạt) ➔ Bầu nhụy lớn thành quả (Tạo quả). Thử sắp xếp lại xem!`);
+    }
+  };
+
+  // Stage 3 Pre-Simulation question handler
+  const handleStage3PreQuestionAnswer = (choice: string) => {
+    setStage3PreQuestionChoice(choice);
+    setStage3PreQuestionAnswered(true);
+    const isCorrect = choice === "Côn trùng (ong, bướm)";
+    setStage3PreQuestionSolved(isCorrect);
+    if (isCorrect) {
+      playSynthSound("correct");
+      setBeeExpression("happy");
+    } else {
+      playSynthSound("wrong");
+      setBeeExpression("thinking");
     }
   };
 
@@ -292,6 +434,7 @@ export default function App() {
         setSimulationStep(3);
         unlockAchievement("graduated");
         setBeeExpression("happy");
+        playSynthSound("complete");
       }, 1200);
     }
   };
@@ -302,15 +445,127 @@ export default function App() {
     setIsFruitGrown(false);
     setSimulationStep(1);
     setStage3SubStage("sequencing");
-    // Re-shuffle steps
+    // Re-shuffle steps (4 steps)
     const shuffled = [...STAGE3_STEPS_DATA].sort(() => Math.random() - 0.5);
-    if (shuffled[0].id === 1 && shuffled[1].id === 2 && shuffled[2].id === 3) {
+    if (shuffled.every((step, idx) => step.id === idx + 1)) {
       const tmp = shuffled[0];
       shuffled[0] = shuffled[1];
       shuffled[1] = tmp;
     }
     setScrambledSteps(shuffled);
     setSequencingFeedback(null);
+  };
+
+  // Stage 4 & 5 Quiz handlers
+  const handleQuizSubmit = (questions: QuizQuestion[]) => {
+    if (showQuizFeedback) return;
+    
+    const currentQ = questions[quizIndex];
+    let isCorrect = false;
+    
+    if (currentQ.type === "single" || currentQ.type === "select") {
+      const ans = selectedOptions[0] || "";
+      isCorrect = ans.trim().toLowerCase() === (currentQ.correctAnswer as string).trim().toLowerCase();
+    } else if (currentQ.type === "multiple") {
+      const userAns = [...selectedOptions].sort();
+      const correctAns = [...(currentQ.correctAnswer as string[])].sort();
+      isCorrect = userAns.length === correctAns.length && userAns.every((val, idx) => val.trim().toLowerCase() === correctAns[idx].trim().toLowerCase());
+    } else if (currentQ.type === "fill") {
+      isCorrect = filledAnswer.trim().toLowerCase() === (currentQ.correctAnswer as string).trim().toLowerCase();
+    }
+    
+    setQuizFeedbackCorrect(isCorrect);
+    setShowQuizFeedback(true);
+    setQuizAnswers(prev => [...prev, isCorrect]);
+    
+    if (isCorrect) {
+      playSynthSound("correct");
+      setBeeExpression("happy");
+    } else {
+      playSynthSound("wrong");
+      setBeeExpression("thinking");
+    }
+  };
+
+  const handleNextQuizQuestion = (questions: QuizQuestion[], stageId: number) => {
+    setShowQuizFeedback(false);
+    setSelectedOptions([]);
+    setFilledAnswer("");
+    setBeeExpression("normal");
+    
+    if (quizIndex < questions.length - 1) {
+      setQuizIndex(prev => prev + 1);
+    } else {
+      // Completed the quiz stage!
+      playSynthSound("complete");
+      const stageScore = quizAnswers.filter(Boolean).length;
+      
+      if (stageId === 4) {
+        setStage4Score(stageScore);
+        setCurrentStage(5);
+        setQuizIndex(0);
+        setQuizAnswers([]);
+      } else if (stageId === 5) {
+        saveAttempt(stageScore);
+      }
+    }
+  };
+
+  const saveAttempt = (stage5Score: number) => {
+    if (!studentInfo) return;
+    
+    const newAttempt: Attempt = {
+      id: `attempt-${Date.now()}`,
+      timestamp: new Date().toLocaleString("vi-VN"),
+      studentInfo: studentInfo,
+      scores: {
+        stage1: 100, // Anatomy completed
+        stage2: gameScore, // out of 8
+        stage3: 100, // Pollination simulation completed
+        stage4: stage4Score || 0, // out of 10
+        stage5: stage5Score // out of 10
+      },
+      totalScore: 100 + (gameScore * 10) + 100 + ((stage4Score || 0) * 10) + (stage5Score * 10)
+    };
+    
+    setAttempts(prev => [newAttempt, ...prev]);
+    setCurrentStage(6); // Show the final report card / history screen
+  };
+
+  const restartAllCurriculum = () => {
+    // Reset all states to do it again
+    setSolvedParts([]);
+    setActiveHotspotId(null);
+    setWrongGuessId(null);
+    setStage1Feedback(null);
+    
+    setGameIndex(0);
+    setGameScore(0);
+    setGameFinished(false);
+    setGameAnswers([]);
+    setCurrentFeedback(null);
+    setStreakCount(0);
+    setTossingTo(null);
+    setBasketBounce(null);
+    
+    setStage3SubStage("sequencing");
+    setBeePosition("center");
+    setHasPollen(false);
+    setIsFruitGrown(false);
+    setSimulationStep(1);
+    setStage3PreQuestionAnswered(false);
+    setStage3PreQuestionSolved(false);
+    setStage3PreQuestionChoice(null);
+    
+    setStage4Score(null);
+    setQuizIndex(0);
+    setQuizAnswers([]);
+    setSelectedOptions([]);
+    setFilledAnswer("");
+    setShowQuizFeedback(false);
+    
+    setBeeExpression("normal");
+    setCurrentStage(1);
   };
 
   // Handle chat submission to server
@@ -485,88 +740,177 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
           </div>
 
           {/* Quick Learning Stats / Milestones */}
-          <div className="flex items-center gap-3">
-            <div className="bg-[#fefcbf] border border-[#fef08a] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-amber-800 shadow-sm">
-              <Sparkles className="w-4.5 h-4.5 text-amber-600 animate-spin-slow" />
-              <span>Chặng {currentStage}/3</span>
+          {studentInfo && (
+            <div className="flex items-center gap-3">
+              <div className="bg-[#fefcbf] border border-[#fef08a] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-amber-800 shadow-sm">
+                <Sparkles className="w-4.5 h-4.5 text-amber-600 animate-spin-slow" />
+                <span>Chặng {currentStage <= 5 ? `${currentStage}/5` : "Hoàn thành"}</span>
+              </div>
+              <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-emerald-800 shadow-sm">
+                <Trophy className="w-4.5 h-4.5 text-emerald-600" />
+                <span>
+                  Thành tích: {achievements.filter((a) => a.unlocked).length}/{achievements.length}
+                </span>
+              </div>
             </div>
-            <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-xl px-4 py-2 flex items-center gap-2.5 text-sm font-bold text-emerald-800 shadow-sm">
-              <Trophy className="w-4.5 h-4.5 text-emerald-600" />
-              <span>
-                Thành tích: {achievements.filter((a) => a.unlocked).length}/{achievements.length}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </header>
 
-      {/* Main Grid Workspace */}
-      <main className="flex-1 w-full px-6 md:px-8 py-6 flex flex-col gap-6" id="main-content-layout">
-        
-        {/* LEFT COLUMN: Learn & Interact Interactive Area (takes full width) */}
-        <section className="w-full flex flex-col gap-5" id="learning-workspace-section">
-          
-          {/* Top Roadmap / Stage Selector */}
-          <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card" id="lesson-roadmap">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3.5 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#fbbf24]" />
-              Lộ trình bài học Khoa học của bé
-            </h2>
-            <div className="grid grid-cols-3 gap-3">
-              {LESSON_STAGES.map((stage) => {
-                const isActive = currentStage === stage.id;
-                const isCompleted = currentStage > stage.id;
-                return (
-                  <button
-                    key={stage.id}
-                    onClick={() => {
-                      setCurrentStage(stage.id);
-                      setBeeExpression("happy");
-                      setTimeout(() => setBeeExpression("normal"), 1500);
-                    }}
-                    className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-300 group ${
-                      isActive
-                        ? "border-[#fbbf24] bg-amber-50/70 shadow-sm"
-                        : isCompleted
-                        ? "border-emerald-300 bg-emerald-50/50"
-                        : "border-[#f1ece1] bg-slate-50 opacity-70 hover:opacity-100"
-                    }`}
-                    id={`roadmap-stage-btn-${stage.id}`}
-                  >
-                    {isCompleted && (
-                      <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-white rounded-full p-0.5">
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      </span>
-                    )}
-                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Chặng {stage.id}
-                    </span>
-                    <span className={`block text-sm sm:text-base font-bold leading-tight mt-1 ${isActive ? "text-amber-900" : isCompleted ? "text-emerald-950" : "text-slate-600"}`}>
-                      {stage.subtitle}
-                    </span>
-                  </button>
-                );
-              })}
+      {!studentInfo ? (
+        /* ONBOARDING SCREEN: Welcome student form */
+        <main className="flex-1 w-full px-6 md:px-8 py-10 flex items-center justify-center animate-fade-in" id="onboarding-root">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border-2 border-[#eae4cd] play-card shadow-lg text-center space-y-6">
+            <div className="inline-block p-4 bg-[#fef08a] rounded-full border-4 border-[#d49a2a] animate-bounce-slow">
+              <span className="text-5xl">🐝</span>
             </div>
-            {/* Active Stage Quick Info banner */}
-            <div className="mt-4 p-4 bg-[#faf9f3] rounded-xl border border-[#ece7d5] flex items-start gap-3">
-              <div className="p-1.5 bg-white rounded-lg border border-[#e5dfc3] shadow-sm text-2xl mt-0.5">
-                {currentStage === 1 ? "🔬" : currentStage === 2 ? "🐝" : "🌱"}
-              </div>
-              <div>
-                <p className="text-sm sm:text-base font-bold text-[#453c30]">
-                  {LESSON_STAGES[currentStage - 1].title}
-                </p>
-                <p className="text-sm text-slate-500 mt-1">
-                  {LESSON_STAGES[currentStage - 1].description}
-                </p>
-              </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-slate-800">Chào Mừng Học Sinh Đến Với BiBi!</h2>
+              <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+                Để bắt đầu học tập và thực hành các hoạt động tương tác, em hãy điền thông tin dưới đây nhé!
+              </p>
             </div>
-          </div>
-
-          <div className="flex-1 bg-white rounded-2xl p-4 sm:p-6 border-2 border-[#eae4cd] play-card flex flex-col justify-between min-h-[460px]" id="interactive-workspace-container">
             
-            {/* CHẶNG 1: THỬ THÁCH GHÉP TÊN BỘ PHẬN HOA */}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const name = (form.elements.namedItem("studentName") as HTMLInputElement).value;
+                const className = (form.elements.namedItem("studentClass") as HTMLInputElement).value;
+                const school = (form.elements.namedItem("studentSchool") as HTMLInputElement).value;
+                if (name.trim() && className.trim() && school.trim()) {
+                  setStudentInfo({ name: name.trim(), className: className.trim(), school: school.trim() });
+                  playSynthSound("complete");
+                }
+              }}
+              className="space-y-4 text-left"
+            >
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Tên học sinh:</label>
+                <input 
+                  name="studentName" 
+                  required 
+                  type="text" 
+                  placeholder="Nhập họ và tên học sinh..."
+                  className="w-full bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-4 py-2.5 text-sm font-semibold"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Lớp:</label>
+                  <input 
+                    name="studentClass" 
+                    required 
+                    type="text" 
+                    placeholder="Ví dụ: 5A1..."
+                    className="w-full bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-4 py-2.5 text-sm font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Trường:</label>
+                  <input 
+                    name="studentSchool" 
+                    required 
+                    type="text" 
+                    placeholder="Trường tiểu học..."
+                    className="w-full bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-4 py-2.5 text-sm font-semibold"
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit"
+                className="w-full py-3 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold rounded-xl border-2 border-amber-500 hover:border-amber-600 shadow-md cursor-pointer transition-all duration-200 uppercase tracking-wider text-sm mt-2"
+              >
+                Bắt đầu học 🚀
+              </button>
+            </form>
+          </div>
+        </main>
+      ) : (
+        /* 3-COLUMN LMS DASHBOARD GRID */
+        <main className="flex-1 w-full px-6 md:px-8 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch" id="main-content-layout">
+          
+          {/* COLUMN 1: LEFT ROADMAP (xl:col-span-3) */}
+          <section className="xl:col-span-3 lg:col-span-4 col-span-1 flex flex-col gap-5" id="left-roadmap-column">
+            <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card flex flex-col gap-4 h-full" id="lesson-roadmap">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#fbbf24]" />
+                Lộ trình học tập
+              </h2>
+              
+              <div className="flex flex-col gap-3">
+                {LESSON_STAGES.map((stage) => {
+                  const isActive = currentStage === stage.id;
+                  const isCompleted = currentStage > stage.id;
+                  const isUnlocked = stage.id <= (attempts.length > 0 ? 5 : Math.max(currentStage, solvedParts.length === FLOWER_PARTS.length ? 2 : 1));
+                  
+                  return (
+                    <button
+                      key={stage.id}
+                      disabled={!isUnlocked}
+                      onClick={() => {
+                        setCurrentStage(stage.id);
+                        setBeeExpression("happy");
+                        setTimeout(() => setBeeExpression("normal"), 1500);
+                      }}
+                      className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-300 group flex items-center gap-3 ${
+                        isActive
+                          ? "border-[#fbbf24] bg-amber-50/70 shadow-sm ring-2 ring-amber-300"
+                          : isCompleted
+                          ? "border-emerald-300 bg-emerald-50/50"
+                          : isUnlocked
+                          ? "border-[#eae4cd] bg-white hover:bg-slate-50 cursor-pointer"
+                          : "border-[#f1ece1] bg-slate-50 opacity-60 cursor-not-allowed"
+                      }`}
+                      id={`roadmap-stage-btn-${stage.id}`}
+                    >
+                      {isCompleted && (
+                        <span className="bg-emerald-500 text-white rounded-full p-0.5 flex-shrink-0">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
+                      )}
+                      {!isCompleted && !isActive && !isUnlocked && (
+                        <span className="text-slate-400 flex-shrink-0">
+                          <Lock className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                      <div className="flex-1">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Chặng {stage.id}
+                        </span>
+                        <span className={`block text-sm font-bold leading-tight mt-0.5 ${isActive ? "text-amber-900" : isCompleted ? "text-emerald-950" : "text-slate-655"}`}>
+                          {stage.subtitle}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Active Stage Detail info banner */}
+              {currentStage <= 5 && (
+                <div className="mt-auto p-4 bg-[#faf9f3] rounded-xl border border-[#ece7d5] flex items-start gap-3">
+                  <div className="p-1.5 bg-white rounded-lg border border-[#e5dfc3] shadow-sm text-2xl mt-0.5">
+                    {currentStage === 1 ? "🔬" : currentStage === 2 ? "🧺" : currentStage === 3 ? "🐝" : currentStage === 4 ? "⚔️" : "🎓"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#453c30]">
+                      {LESSON_STAGES[currentStage - 1].title}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      {LESSON_STAGES[currentStage - 1].description}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* COLUMN 2: CENTER ACTIVE WORKSPACE (xl:col-span-6) */}
+          <section className="xl:col-span-6 lg:col-span-8 col-span-1 flex flex-col" id="center-workspace-column">
+            <div className="flex-1 bg-white rounded-2xl p-6 border-2 border-[#eae4cd] play-card flex flex-col justify-between min-h-[500px]" id="interactive-workspace-container">
+              
+              {/* CHẶNG 1: THỬ THÁCH GHÉP TÊN BỘ PHẬN HOA */}
             {currentStage === 1 && (
               <div className="flex-1 flex flex-col justify-between" id="stage1-anatomy-workspace">
                 <div className="text-center mb-4">
@@ -1144,435 +1488,803 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                   </div>
                 )}
 
-                {/* SUB-STAGE 3B: INTERACTIVE POLLINATION SIMULATION */}
+                {/* SUB-STAGE 3B: INTERACTIVE POLLINATION SIMULATION WITH PRE-QUESTION */}
                 {stage3SubStage === "simulation" && (
-                  <div className="flex-1 flex flex-col justify-between" id="stage3-simulation-view">
-                    <div className="text-center mb-3">
-                      <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                        Trò Chơi Thực Hành 🐝
-                      </span>
-                      <h3 className="text-lg font-bold text-[#1e293b] mt-1.5">
-                        Mô Phỏng: Bé Giúp BiBi Thụ Phấn Cho Hoa
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Bé hãy ra lệnh giúp BiBi bay đến Nhị hoa đực lấy phấn, rồi mang sang đầu Nhụy hoa cái nhé!
-                      </p>
-                    </div>
+                  <div className="flex-1 flex flex-col justify-between animate-fade-in" id="stage3-simulation-view">
+                    
+                    {!stage3PreQuestionSolved ? (
+                      /* Pre-simulation question box */
+                      <div className="my-auto max-w-md mx-auto w-full p-5 bg-white border-2 border-amber-300 bg-amber-50/10 rounded-2xl shadow-sm space-y-4">
+                        <h4 className="text-sm font-bold text-amber-855 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🐝</span> Câu hỏi kích hoạt BiBi:
+                        </h4>
+                        <p className="text-sm sm:text-base font-bold text-[#2c251e] leading-relaxed">
+                          Hoa mướp thụ phấn chủ yếu nhờ tác nhân nào trong tự nhiên?
+                        </p>
+                        
+                        <div className="flex flex-col gap-2 pt-1.5">
+                          {["Gió", "Côn trùng (ong, bướm)", "Nước mưa", "Tự thụ phấn"].map((opt, oIdx) => {
+                            const isSelected = stage3PreQuestionChoice === opt;
+                            const isCorrect = opt === "Côn trùng (ong, bướm)";
+                            return (
+                              <button
+                                key={oIdx}
+                                disabled={stage3PreQuestionAnswered && stage3PreQuestionSolved}
+                                onClick={() => handleStage3PreQuestionAnswer(opt)}
+                                className={`p-3 rounded-xl border-2 text-sm font-semibold text-left transition-all duration-200 flex items-center justify-between ${
+                                  isSelected
+                                    ? isCorrect
+                                      ? "border-emerald-500 bg-emerald-50 text-emerald-950"
+                                      : "border-rose-400 bg-rose-50 text-rose-950 animate-shake"
+                                    : "bg-white border-slate-200 text-slate-705 hover:bg-slate-50 cursor-pointer"
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {stage3PreQuestionAnswered && isSelected && (
+                                  <span className="font-bold text-xs">
+                                    {isCorrect ? "Đúng rồi! ✓" : "Sai rồi! ✗"}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                    {/* Interactive simulation stage map */}
-                    <div className="h-56 w-full border-2 border-[#eae4cd] bg-[#fbfbfa] rounded-2xl relative overflow-hidden flex justify-between items-end pb-8 px-6 shadow-inner my-auto">
-                      
-                      {/* Sky element decorations */}
-                      <span className="absolute top-4 left-6 text-xl opacity-20">☁️</span>
-                      <span className="absolute top-8 right-16 text-2xl opacity-10">☁️</span>
-                      <span className="absolute top-3 right-8 text-3xl opacity-25 text-amber-400">☀️</span>
-
-                      {/* Male Flower (Nhị) */}
-                      <div className="flex flex-col items-center relative z-10 w-24">
-                        {/* Pollen particles surrounding male flower when pollen is still present */}
-                        {!hasPollen && !isFruitGrown && (
-                          <div className="absolute top-[-30px] flex gap-1 justify-center animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 border border-amber-300"></span>
-                            <span className="w-2 h-2 rounded-full bg-yellow-400 border border-amber-300 mt-2"></span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 border border-amber-300 mt-1"></span>
+                        {stage3PreQuestionAnswered && (
+                          <div className={`p-3 rounded-xl border text-xs sm:text-sm font-medium leading-relaxed animate-fade-in ${
+                            stage3PreQuestionSolved
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                              : "bg-rose-50 border-rose-200 text-rose-800"
+                          }`}>
+                            {stage3PreQuestionSolved
+                              ? "Hoàn toàn chính xác! Bông hoa mướp cái có nhụy tiết ra mật ngọt thơm lừng để thu hút ong bướm đến truyền hạt phấn chéo từ bông mướp đực sang bông mướp cái."
+                              : "Chưa chính xác rồi em ơi! Gợi ý: Hoa mướp có màu vàng rực rỡ, cánh hoa to và có tuyến mật ngọt. Loài vật nào rất thích hút mật ngọt?"}
                           </div>
                         )}
-                        
-                        {/* Flower Body */}
-                        <div className="text-5xl select-none relative">
-                          🌼
-                          {/* Stamen extension */}
-                          <span className="absolute top-1 left-4 text-base animate-bounce">⚡</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200 mt-2">
-                          Nhị (Hoa đực)
-                        </span>
-                      </div>
 
-                      {/* BiBi character sliding smoothly between targets */}
-                      <div 
-                        className="absolute bottom-[40px] z-20 transition-all duration-1000 ease-in-out"
-                        style={{
-                          left: beePosition === "stamen" ? "12%" : beePosition === "pistil" ? "74%" : "44%",
-                          transform: "translateY(-50%)"
-                        }}
-                      >
-                        <div className="relative">
-                          {/* Glowing Pollen aura around bee body */}
-                          {hasPollen && (
-                            <div className="animate-pollen-aura" />
-                          )}
-                          
-                          <BiBiBee expression={beeExpression} size={70} />
-                          
-                          {/* Pollen carrying visual indicator */}
-                          {hasPollen && (
-                            <span className="absolute top-[-10px] right-0 bg-yellow-400 text-yellow-950 border border-yellow-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold animate-bounce shadow-sm">
-                              ✨
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Female Flower (Nhụy) */}
-                      <div className="flex flex-col items-center relative z-10 w-24">
-                        
-                        {isFruitGrown ? (
-                          /* Ripe fruit growth simulation with grow animation */
-                          <div className="flex flex-col items-center animate-fruit-grow">
-                            {/* Growing fruit emoji */}
-                            <span className="text-6xl select-none filter drop-shadow">🥒</span>
-                            <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 mt-2">
-                              Quả mướp (Hạt giống!)
-                            </span>
+                        {stage3PreQuestionAnswered && (
+                          <div className="pt-2 text-right">
+                            {stage3PreQuestionSolved ? (
+                              <button
+                                onClick={() => {
+                                  // Lock in solved state
+                                  setStage3PreQuestionSolved(true);
+                                }}
+                                className="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold rounded-xl border border-amber-500 cursor-pointer text-xs uppercase"
+                              >
+                                Bắt đầu bay 🐝➔
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setStage3PreQuestionAnswered(false);
+                                  setStage3PreQuestionChoice(null);
+                                }}
+                                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl border border-slate-350 cursor-pointer text-xs uppercase"
+                              >
+                                Thử lại 🔄
+                              </button>
+                            )}
                           </div>
-                        ) : (
-                          /* Initial waiting female flower */
-                          <div className="flex flex-col items-center">
-                            <div className="relative select-none text-5xl">
-                              🌺
-                              {/* Ovary swelling base */}
-                              <span className="absolute bottom-[-10px] left-3.5 w-6 h-5 bg-green-500 rounded-full border-2 border-emerald-700 opacity-80" title="Bầu nhụy noãn" />
+                        )}
+                      </div>
+                    ) : (
+                      /* Actual simulation container */
+                      <div className="flex-1 flex flex-col justify-between" id="actual-simulation-stage">
+                        <div className="text-center mb-3">
+                          <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            Trò Chơi Thực Hành 🐝
+                          </span>
+                          <h3 className="text-lg font-bold text-[#1e293b] mt-1.5">
+                            Mô Phỏng: Giúp BiBi Thụ Phấn Cho Hoa
+                          </h3>
+                          <p className="text-xs text-slate-505 mt-0.5">
+                            Bé hãy điều khiển giúp BiBi bay đến Nhị hoa đực lấy phấn, rồi mang sang đầu Nhụy hoa cái nhé!
+                          </p>
+                        </div>
+
+                        {/* Interactive simulation stage map */}
+                        <div className="h-56 w-full border-2 border-[#eae4cd] bg-[#fbfbfa] rounded-2xl relative overflow-hidden flex justify-between items-end pb-8 px-6 shadow-inner my-auto">
+                          <span className="absolute top-4 left-6 text-xl opacity-20">☁️</span>
+                          <span className="absolute top-8 right-16 text-2xl opacity-10">☁️</span>
+                          <span className="absolute top-3 right-8 text-3xl opacity-25 text-amber-400">☀️</span>
+
+                          {/* Male Flower (Nhị) */}
+                          <div className="flex flex-col items-center relative z-10 w-24">
+                            {!hasPollen && !isFruitGrown && (
+                              <div className="absolute top-[-30px] flex gap-1 justify-center animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 border border-amber-300"></span>
+                                <span className="w-2 h-2 rounded-full bg-yellow-400 border border-amber-300 mt-2"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 border border-amber-300 mt-1"></span>
+                              </div>
+                            )}
+                            
+                            <div className="text-5xl select-none relative">
+                              🌼
+                              <span className="absolute top-1 left-4 text-base animate-bounce">⚡</span>
                             </div>
-                            <span className="text-[10px] font-bold text-[#453c30] bg-[#faf9f3] px-2 py-0.5 rounded-full border border-slate-200 mt-2">
-                              Nhụy (Hoa cái)
+                            <span className="text-[10px] font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200 mt-2">
+                              Nhị (Hoa đực)
                             </span>
+                          </div>
+
+                          {/* BiBi character */}
+                          <div 
+                            className="absolute bottom-[40px] z-20 transition-all duration-1000 ease-in-out"
+                            style={{
+                              left: beePosition === "stamen" ? "12%" : beePosition === "pistil" ? "74%" : "44%",
+                              transform: "translateY(-50%)"
+                            }}
+                          >
+                            <div className="relative">
+                              {hasPollen && (
+                                <div className="animate-pollen-aura" />
+                              )}
+                              
+                              <BiBiBee expression={beeExpression} size={70} />
+                              
+                              {hasPollen && (
+                                <span className="absolute top-[-10px] right-0 bg-yellow-400 text-yellow-950 border border-yellow-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold animate-bounce shadow-sm">
+                                  ✨
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Female Flower (Nhụy) */}
+                          <div className="flex flex-col items-center relative z-10 w-24">
+                            {isFruitGrown ? (
+                              <div className="flex flex-col items-center animate-fruit-grow">
+                                <span className="text-6xl select-none filter drop-shadow">🥒</span>
+                                <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 mt-2 animate-pulse">
+                                  Quả mướp ngọt!
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <div className="relative select-none text-5xl">
+                                  🌺
+                                  <span className="absolute bottom-[-10px] left-3.5 w-6 h-5 bg-green-500 rounded-full border-2 border-emerald-700 opacity-80" />
+                                </div>
+                                <span className="text-[10px] font-bold text-[#453c30] bg-[#faf9f3] px-2 py-0.5 rounded-full border border-slate-200 mt-2">
+                                  Nhụy (Hoa cái)
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Simulation controls */}
+                        <div className="bg-[#faf9f3] p-3 rounded-xl border border-[#eae4cd] flex flex-col items-center gap-2 mt-3 text-center">
+                          {simulationStep === 1 && (
+                            <div className="flex flex-col items-center gap-1.5 w-full">
+                              <p className="text-sm text-[#453c30] font-bold">
+                                💬 BiBi: "Bé hãy bấm nút dưới đây để tớ bay sang Nhị đực lấy phấn hoa nhé!"
+                              </p>
+                              <button
+                                onClick={() => handleBeeAction("collect")}
+                                className="w-full max-w-xs py-2.5 px-6 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
+                              >
+                                🐝 Bay lấy phấn hoa ➔
+                              </button>
+                            </div>
+                          )}
+
+                          {simulationStep === 2 && (
+                            <div className="flex flex-col items-center gap-1.5 w-full">
+                              <p className="text-sm text-emerald-850 font-bold animate-pulse">
+                                ✨ BiBi: "Đã bám đầy hạt phấn vàng rồi! Hãy dẫn tớ sang bông hoa cái nào!"
+                              </p>
+                              <button
+                                onClick={() => handleBeeAction("pollinate")}
+                                className="w-full max-w-xs py-2.5 px-6 rounded-xl border-2 border-emerald-600 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
+                              >
+                                🐝 Bay thụ phấn hoa cái ➔
+                              </button>
+                            </div>
+                          )}
+
+                          {simulationStep === 3 && (
+                            <div className="flex flex-col items-center gap-3 w-full animate-fade-in">
+                              <p className="text-sm text-emerald-800 font-bold leading-normal px-4">
+                                🎉 Quá kỳ diệu! Cánh hoa cái héo rụng đi, bầu nhụy của hoa mướp đã thụ tinh thành công và phình to phát triển thành một quả mướp căng đầy chứa đầy hạt giống!
+                              </p>
+                              <div className="flex gap-3 w-full max-w-md">
+                                <button
+                                  onClick={restartSimulation}
+                                  className="flex-1 py-2.5 px-3 rounded-xl border border-slate-350 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer active:translate-y-0.5"
+                                >
+                                  🔄 Chơi lại
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCurrentStage(4);
+                                    setBeeExpression("happy");
+                                  }}
+                                  className="flex-1 py-2.5 px-3 rounded-xl bg-amber-400 border-2 border-amber-500 hover:border-amber-600 text-amber-950 font-bold text-xs shadow-sm cursor-pointer active:translate-y-0.5 animate-pulse"
+                                >
+                                  Bài tập luyện tập ➔
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+            )}
+
+            {/* CHẶNG 4 & CHẶNG 5: BÀI TẬP TRẮC NGHIỆM TƯƠNG TÁC ĐA DẠNG */}
+            {(currentStage === 4 || currentStage === 5) && (
+              <div className="flex-1 flex flex-col justify-between" id="stage-quiz-workspace">
+                {(() => {
+                  const questions = currentStage === 4 ? QUIZ_QUESTIONS_STAGE4 : QUIZ_QUESTIONS_STAGE5;
+                  const currentQ = questions[quizIndex];
+                  
+                  return (
+                    <div className="flex-1 flex flex-col justify-between h-full">
+                      {/* Quiz Header info */}
+                      <div className="text-center mb-4">
+                        <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                          {currentStage === 4 ? "Chặng 4: Luyện Tập Cơ Bản" : "Chặng 5: Bác Học Nâng Cao"} ⚔️
+                        </span>
+                        <h3 className="text-lg font-bold text-slate-800 mt-2">
+                          Câu hỏi {quizIndex + 1} trên {questions.length}
+                        </h3>
+                        
+                        {/* Progress indicators */}
+                        <div className="flex items-center justify-center gap-1.5 mt-2">
+                          {questions.map((_, qIdx) => {
+                            const isAnswered = qIdx < quizAnswers.length;
+                            const isCorrect = isAnswered && quizAnswers[qIdx];
+                            const isCurrent = qIdx === quizIndex;
+                            return (
+                              <span 
+                                key={qIdx}
+                                className={`w-3.5 h-3.5 rounded-full border transition-all duration-300 ${
+                                  isCurrent 
+                                    ? "bg-indigo-400 border-indigo-600 scale-125 ring-2 ring-indigo-200"
+                                    : isAnswered
+                                    ? isCorrect
+                                      ? "bg-emerald-500 border-emerald-600"
+                                      : "bg-rose-500 border-rose-600"
+                                    : "bg-slate-100 border-slate-300"
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Question Text block */}
+                      <div className="my-auto space-y-4 max-w-lg mx-auto w-full">
+                        <div className="p-4 bg-[#faf9f3] rounded-2xl border border-[#eae4cd] shadow-sm">
+                          <p className="text-sm sm:text-base font-bold text-[#2c251e] leading-relaxed">
+                            {currentQ.question}
+                          </p>
+                        </div>
+
+                        {/* Render Question Inputs dynamically */}
+                        <div className="space-y-2.5">
+                          {currentQ.type === "single" && (
+                            <div className="grid grid-cols-1 gap-2.5">
+                              {currentQ.options?.map((opt, oIdx) => {
+                                const isSelected = selectedOptions.includes(opt);
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    disabled={showQuizFeedback}
+                                    onClick={() => setSelectedOptions([opt])}
+                                    className={`p-3 rounded-xl border-2 text-sm font-bold text-left transition-all duration-200 flex items-center gap-3.5 ${
+                                      isSelected
+                                        ? "border-amber-400 bg-amber-50/70"
+                                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                                    }`}
+                                  >
+                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center border font-bold text-xs ${isSelected ? "bg-amber-400 border-amber-500 text-amber-950" : "border-slate-300 bg-slate-50 text-slate-500"}`}>
+                                      {String.fromCharCode(65 + oIdx)}
+                                    </span>
+                                    <span>{opt}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {currentQ.type === "multiple" && (
+                            <div className="grid grid-cols-1 gap-2.5">
+                              <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider mb-1">
+                                💡 Nhấp chọn tất cả câu trả lời đúng (có thể chọn nhiều):
+                              </p>
+                              {currentQ.options?.map((opt, oIdx) => {
+                                const isSelected = selectedOptions.includes(opt);
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    disabled={showQuizFeedback}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setSelectedOptions(prev => prev.filter(o => o !== opt));
+                                      } else {
+                                        setSelectedOptions(prev => [...prev, opt]);
+                                      }
+                                    }}
+                                    className={`p-3 rounded-xl border-2 text-sm font-bold text-left transition-all duration-200 flex items-center gap-3.5 ${
+                                      isSelected
+                                        ? "border-indigo-400 bg-indigo-50/40"
+                                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                                    }`}
+                                  >
+                                    <input 
+                                      type="checkbox" 
+                                      checked={isSelected}
+                                      readOnly
+                                      disabled={showQuizFeedback}
+                                      className="w-4.5 h-4.5 rounded text-indigo-605 border-slate-350 focus:ring-indigo-505"
+                                    />
+                                    <span>{opt}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {currentQ.type === "fill" && (
+                            <div className="flex flex-col gap-2 max-w-md mx-auto w-full">
+                              <input 
+                                type="text"
+                                value={filledAnswer}
+                                disabled={showQuizFeedback}
+                                onChange={(e) => setFilledAnswer(e.target.value)}
+                                placeholder={currentQ.placeholder || "Ví dụ: thụ phấn..."}
+                                className="w-full bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-4 py-3 text-sm font-semibold"
+                              />
+                              <p className="text-[10px] text-slate-400 italic mt-0.5 text-center">
+                                Gõ từ/cụm từ thích hợp vào ô trống rồi nộp bài.
+                              </p>
+                            </div>
+                          )}
+
+                          {currentQ.type === "select" && (
+                            <div className="flex flex-col gap-2 max-w-md mx-auto w-full">
+                              <select
+                                value={selectedOptions[0] || ""}
+                                disabled={showQuizFeedback}
+                                onChange={(e) => setSelectedOptions([e.target.value])}
+                                className="w-full bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-4 py-3 text-sm font-bold text-slate-750"
+                              >
+                                <option value="">-- Click để chọn đáp án đúng --</option>
+                                {currentQ.options?.map((opt, oIdx) => (
+                                  <option key={oIdx} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Answer Feedback Banner */}
+                        {showQuizFeedback && (
+                          <div className={`p-4 rounded-xl border text-xs sm:text-sm font-medium leading-relaxed animate-fade-in ${
+                            quizFeedbackCorrect
+                              ? "bg-emerald-50 border-emerald-250 text-emerald-800"
+                              : "bg-rose-50 border-rose-250 text-rose-800"
+                          }`}>
+                            <p className="font-bold mb-1 text-sm">
+                              {quizFeedbackCorrect ? "🎉 Trả lời chính xác!" : "⚠️ Chưa đúng rồi!"}
+                            </p>
+                            {!quizFeedbackCorrect && (
+                              <p className="mb-1 font-semibold">
+                                Đáp án chính xác: <span className="underline">{Array.isArray(currentQ.correctAnswer) ? currentQ.correctAnswer.join(", ") : currentQ.correctAnswer}</span>
+                              </p>
+                            )}
+                            <p className="text-slate-655">{currentQ.explanation}</p>
                           </div>
                         )}
                       </div>
+
+                      {/* Bottom action controls */}
+                      <div className="border-t border-[#f1ece1] pt-4 mt-4 text-right">
+                        {showQuizFeedback ? (
+                          <button
+                            onClick={() => handleNextQuizQuestion(questions, currentStage)}
+                            className="px-6 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl border border-indigo-700 cursor-pointer text-xs uppercase tracking-wider flex items-center gap-1.5 ml-auto active:translate-y-0.5 shadow-sm"
+                          >
+                            {quizIndex < questions.length - 1 ? "Câu tiếp theo" : "Hoàn thành chặng"} <ArrowRight className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            disabled={
+                              (currentQ.type === "fill" && !filledAnswer.trim()) ||
+                              (currentQ.type !== "fill" && selectedOptions.length === 0)
+                            }
+                            onClick={() => handleQuizSubmit(questions)}
+                            className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-650 text-white font-bold rounded-xl border border-indigo-600 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400 cursor-pointer disabled:cursor-not-allowed text-xs uppercase tracking-wider shadow-sm ml-auto active:translate-y-0.5"
+                          >
+                            Nộp câu trả lời 🔍
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  );
+                })()}
+              </div>
+            )}
 
-                    {/* Simulation action button control panel */}
-                    <div className="bg-[#faf9f3] p-3 rounded-xl border border-[#eae4cd] flex flex-col items-center gap-2 mt-3 text-center">
-                      
-                      {simulationStep === 1 && (
-                        <div className="flex flex-col items-center gap-1.5 w-full">
-                          <p className="text-sm text-slate-600 font-bold">
-                            💬 BiBi: "Bé ơi, giúp tớ bay sang Nhị hoa đực lấy phấn vàng đi nhé!"
-                          </p>
-                          <button
-                            onClick={() => handleBeeAction("collect")}
-                            className="w-full max-w-xs py-3 px-6 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
-                          >
-                            🐝 Bay đi lấy phấn hoa ➔
-                          </button>
-                        </div>
-                      )}
+            {/* CHẶNG 6: BÀI TẬP BẢNG TỔNG KẾT ĐIỂM SỐ & THỐNG KÊ LƯỢT LÀM */}
+            {currentStage === 6 && (
+              <div className="flex-1 flex flex-col justify-between animate-fade-in" id="stage6-report-workspace">
+                <div className="text-center space-y-3 py-6">
+                  <div className="inline-block p-4 bg-[#ecfdf5] rounded-full border-4 border-emerald-500 animate-bounce">
+                    <span className="text-5xl">🎓🌟</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-[#1e293b]">Bảng Vàng Học Tập Của Bạn</h3>
+                  <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+                    Xin chúc mừng học sinh <strong className="text-amber-600 font-bold">{studentInfo?.name}</strong> của tập thể lớp <strong className="text-slate-800">{studentInfo?.className}</strong>, trường <strong className="text-slate-800">{studentInfo?.school}</strong> đã xuất sắc tốt nghiệp khóa học sinh sản thực vật có hoa!
+                  </p>
+                </div>
 
-                      {simulationStep === 2 && (
-                        <div className="flex flex-col items-center gap-1.5 w-full">
-                          <p className="text-sm text-emerald-800 font-semibold animate-pulse">
-                            ✨ BiBi: "Phấn hoa đã dính đầy mình rồi! Giờ bay sang đầu Nhụy hoa cái thôi!"
-                          </p>
-                          <button
-                            onClick={() => handleBeeAction("pollinate")}
-                            className="w-full max-w-xs py-3 px-6 rounded-xl border-2 border-emerald-600 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm shadow-md cursor-pointer active:translate-y-0.5"
-                          >
-                            🐝 Bay sang Nhụy hoa cái để thụ phấn ➔
-                          </button>
-                        </div>
-                      )}
-
-                      {simulationStep === 3 && (
-                        <div className="flex flex-col items-center gap-3 w-full animate-fade-in">
-                          <p className="text-sm text-emerald-800 font-bold leading-normal">
-                            🎉 Quá kỳ diệu! Cánh hoa cái héo rụng đi, bầu nhụy của hoa mướp đã thụ tinh thành công và phình to phát triển thành một quả mướp căng đầy chứa đầy hạt giống!
-                          </p>
-                          <div className="flex gap-3 w-full max-w-xs">
-                            <button
-                              onClick={restartSimulation}
-                              className="flex-1 py-2 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
-                            >
-                              🔄 Chơi lại cuộc phiêu lưu
-                            </button>
-                            <button
-                              onClick={() => {
-                                handleQuickQuestion("BiBi ơi, tớ đã giúp cậu thụ phấn và tạo ra quả mướp rồi nè! Khen tớ đi!");
-                              }}
-                              className="flex-1 py-2 px-3 rounded-lg bg-amber-400 border border-amber-500 text-amber-950 font-bold text-xs hover:bg-amber-300 shadow-sm cursor-pointer"
-                            >
-                              🏆 Báo công với BiBi
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                <div className="bg-[#faf9f3] rounded-2xl p-5 border border-[#eae4cd] space-y-4 max-w-md mx-auto w-full shadow-sm">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 text-center border-b border-amber-250 pb-2">
+                    Chi tiết điểm số lượt thi vừa xong:
+                  </h4>
+                  <div className="space-y-2.5 text-sm font-medium">
+                    <div className="flex justify-between">
+                      <span>Chặng 1: Nhận diện cấu tạo hoa</span>
+                      <span className="text-emerald-600 font-bold">100 / 100đ</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chặng 2: Phân loại hoa (Đơn/Lưỡng tính)</span>
+                      <span className="text-emerald-600 font-bold">{gameScore * 10} / 80đ</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chặng 3: Sắp xếp & Mô phỏng thụ phấn</span>
+                      <span className="text-emerald-600 font-bold">100 / 100đ</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chặng 4: Luyện tập cơ bản (Trắc nghiệm)</span>
+                      <span className="text-emerald-600 font-bold">{(stage4Score || 0) * 10} / 100đ</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chặng 5: Thử thách nâng cao</span>
+                      <span className="text-emerald-600 font-bold">{(attempts[0]?.scores.stage5 || 0) * 10} / 100đ</span>
+                    </div>
+                    <div className="flex justify-between border-t border-[#eae4cd] pt-2 font-bold text-base mt-2">
+                      <span className="text-slate-800">TỔNG ĐIỂM ĐẠT ĐƯỢC:</span>
+                      <span className="text-amber-600">{attempts[0]?.totalScore || 0} / 480 điểm</span>
                     </div>
                   </div>
-                )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto w-full mt-6">
+                  <button
+                    onClick={restartAllCurriculum}
+                    className="flex-1 py-3 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold rounded-xl border-2 border-amber-500 hover:border-amber-600 shadow-md cursor-pointer transition-all duration-200 text-center uppercase tracking-wider text-xs active:translate-y-0.5"
+                  >
+                    🔄 Làm lại từ đầu
+                  </button>
+                  <button
+                    onClick={() => {
+                      setStudentInfo(null);
+                      restartAllCurriculum();
+                    }}
+                    className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl border-2 border-slate-300 shadow-sm cursor-pointer transition-all duration-200 text-center uppercase tracking-wider text-xs active:translate-y-0.5"
+                  >
+                    👤 Đổi học sinh khác
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </section>
 
-        {/* RIGHT COLUMN / FLOATING DRAWER: Chat With BiBi Educational Chatbot */}
-        {isChatOpen && (
-          <>
-            {/* Backdrop blur overlay */}
-            <div 
-              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-all duration-300"
-              onClick={() => setIsChatOpen(false)}
-            />
-            {/* Slide-out Drawer Panel */}
-            <section 
-              className="fixed right-0 top-0 h-full w-full sm:w-[480px] bg-white z-50 flex flex-col shadow-2xl animate-slide-in-right border-l-2 border-[#eae4cd]"
-              id="chat-workspace-section"
+        {/* COLUMN 3: RIGHT PANEL - PROFILE, ACHIEVEMENTS & ATTEMPTS HISTORY (xl:col-span-3) */}
+        <section className="xl:col-span-3 lg:col-span-12 col-span-1 flex flex-col gap-5" id="right-dashboard-column">
+          
+          {/* Profile Card */}
+          <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card flex flex-col gap-3 shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <span>👤</span> Góc học tập của em
+            </h3>
+            <div className="p-3 bg-[#faf9f3] rounded-xl border border-amber-100 flex flex-col gap-1">
+              <p className="text-sm font-bold text-amber-955 truncate">{studentInfo.name}</p>
+              <p className="text-xs text-slate-500 truncate">Lớp: {studentInfo.className}</p>
+              <p className="text-xs text-slate-500 truncate">Trường: {studentInfo.school}</p>
+            </div>
+            <button
+              onClick={() => {
+                setStudentInfo(null);
+                restartAllCurriculum();
+              }}
+              className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-650 border border-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
             >
-              {/* Chat Header containing active BiBi character representation */}
-              <div className="bg-[#faf9f3] p-4 border-b border-[#eae4cd] flex items-center justify-between gap-3" id="chat-header-panel">
-                <div className="flex items-center gap-3">
-                  {/* Animated BiBi Character */}
-                  <div className="bg-white rounded-full p-1.5 border border-[#e5dfc3] shadow-sm">
-                    <BiBiBee expression={beeExpression} size={65} />
+              Đổi học sinh 👤
+            </button>
+          </div>
+
+          {/* Bảng thành tích (Moved from Footer!) */}
+          <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card flex flex-col gap-3 shadow-sm animate-fade-in">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <Trophy className="w-4.5 h-4.5 text-amber-500" />
+              Thành tích đạt được
+            </h3>
+            <div className="flex flex-col gap-2.5">
+              {achievements.map((ach) => (
+                <div
+                  key={ach.id}
+                  className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all duration-300 ${
+                    ach.unlocked
+                      ? "bg-[#faf9f3] border-[#fbbf24] text-[#2c251e] shadow-xs"
+                      : "bg-slate-50/50 border-[#f1ece1] text-slate-400 opacity-60"
+                  }`}
+                >
+                  <div className="text-2xl p-1 bg-white rounded-lg border flex-shrink-0">
+                    {ach.unlocked ? ach.emoji : "🔒"}
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-1.5">
-                      Trợ lý Ong Vàng BiBi 🐝
-                    </h3>
-                    <span className="text-xs inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Sẵn sàng giải đáp
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Clear Chat Button */}
-                  <button
-                    onClick={() => {
-                      setMessages([
-                        {
-                          id: "welcome-reset",
-                          role: "assistant",
-                          content: "BiBi đã dọn dẹp bàn học sạch sẽ rồi nè! Bạn nhỏ có câu hỏi nào mới về nhị, nhụy hay bài học khoa học lớp 5 không? Hãy trò chuyện cùng BiBi nhé! 🐝🌻",
-                          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
-                        },
-                      ]);
-                    }}
-                    title="Xóa lịch sử chat để học lại"
-                    className="p-1.5 text-slate-400 hover:text-slate-650 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                    id="clear-chat-history-btn"
-                  >
-                    <RotateCcw className="w-4.5 h-4.5" />
-                  </button>
-                  {/* Close Drawer Button */}
-                  <button
-                    onClick={() => setIsChatOpen(false)}
-                    title="Đóng cửa sổ chat"
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* Chat bubbles viewport */}
-              <div
-                ref={chatContainerRef}
-                className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#fdfdfc]"
-                id="chat-messages-viewport"
-              >
-                {messages.map((msg) => {
-                  const isAssistant = msg.role === "assistant";
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex items-start gap-2.5 ${isAssistant ? "justify-start" : "justify-end"}`}
-                      id={`chat-msg-row-${msg.id}`}
-                    >
-                      {isAssistant && (
-                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1 flex-shrink-0">
-                          🐝
-                        </div>
-                      )}
-                      <div
-                        className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed ${
-                          isAssistant
-                            ? "bg-white border border-[#eae4cd] text-[#2c251e] rounded-tl-sm shadow-sm"
-                            : "bg-amber-400 text-amber-950 font-semibold rounded-tr-sm self-end"
-                        }`}
-                      >
-                        <div className="whitespace-pre-line prose max-w-none">
-                          {msg.content}
-                        </div>
-                        <span className="block text-[9px] text-slate-400 mt-1 text-right">
-                          {msg.timestamp}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Simulated Typings Indicator */}
-                {isSending && (
-                  <div className="flex items-start gap-2.5 justify-start animate-pulse" id="bibi-typing-loader">
-                    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1">
-                      🐝
-                    </div>
-                    <div className="bg-white border border-[#eae4cd] rounded-2xl rounded-tl-sm p-3.5 text-sm text-slate-450">
-                      BiBi đang tìm mật hoa tri thức để trả lời bạn... 🐝✨
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Missing API KEY guidance widget */}
-              {apiKeyError && (
-                <div className="px-4 py-2 bg-amber-50 border-y border-amber-200 text-xs text-amber-900 flex items-start gap-2" id="api-key-warning-card">
-                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-xs">Chế độ Học Offline kích hoạt!</p>
-                    <p className="text-[11px] text-amber-800 leading-normal">
-                      Chưa cài đặt bí mật <strong>GEMINI_API_KEY</strong> nên BiBi đang dùng bộ câu trả lời thông minh được biên soạn sẵn từ SGK. Bạn nhỏ vẫn thỏa sức hỏi đáp nhé!
+                  <div className="overflow-hidden">
+                    <h4 className="text-xs font-bold leading-tight truncate">{ach.title}</h4>
+                    <p className="text-[10px] text-slate-400 leading-normal truncate" title={ach.description}>
+                      {ach.description}
                     </p>
                   </div>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
 
-              {/* Bottom input area and quick questions helper */}
-              <div className="p-4 bg-[#faf9f3] border-t border-[#eae4cd] space-y-2.5" id="chat-controls-area">
-                
-                {/* Quick helper question chips based on the active stage */}
-                <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" id="quick-questions-panel">
-                  <span className="text-xs text-slate-400 font-bold flex-shrink-0 flex items-center gap-1 uppercase">
-                    <HelpCircle className="w-3.5 h-3.5 text-amber-500" /> Đố BiBi:
-                  </span>
-                  
-                  {currentStage === 1 && (
-                    <>
-                      <button
-                        onClick={() => handleQuickQuestion("Nhị hoa và nhụy hoa khác nhau thế nào BiBi ơi?")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        Nhị vs Nhụy khác nhau gì? 🤔
-                      </button>
-                      <button
-                        onClick={() => handleQuickQuestion("Cánh hoa có vai trò gì trong sinh sản vậy BiBi?")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        Vai trò của Cánh hoa 🌸
-                      </button>
-                    </>
-                  )}
-
-                  {currentStage === 2 && (
-                    <>
-                      <button
-                        onClick={() => handleQuickQuestion("Tại sao hoa mướp lại là hoa đơn tính vậy BiBi?")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        Tại sao mướp là hoa đơn tính? 🥒
-                      </button>
-                      <button
-                        onClick={() => handleQuickQuestion("Cho tớ 3 ví dụ về hoa lưỡng tính phổ biến với!")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        3 ví dụ hoa lưỡng tính 🌺
-                      </button>
-                    </>
-                  )}
-
-                  {currentStage === 3 && (
-                    <>
-                      <button
-                        onClick={() => handleQuickQuestion("Quá trình thụ phấn diễn ra nhờ những gì hả BiBi?")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        Thụ phấn nhờ những ai? 💨
-                      </button>
-                      <button
-                        onClick={() => handleQuickQuestion("Sau khi thụ tinh thì hoa bưởi sẽ biến đổi thế nào?")}
-                        className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
-                      >
-                        Sự biến đổi sau thụ tinh 🍊
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* Input Form */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }}
-                  className="flex items-center gap-2"
-                  id="bibi-chat-input-form"
-                >
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Nhập câu hỏi về bài học khoa học của bé..."
-                    disabled={isSending}
-                    className="flex-1 bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-3.5 py-2.5 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSending || !inputValue.trim()}
-                    className="bg-amber-400 hover:bg-amber-500 disabled:bg-slate-100 disabled:text-slate-400 text-amber-950 font-bold p-3 rounded-xl border-2 border-transparent disabled:border-transparent hover:border-amber-500 transition-colors cursor-pointer"
-                    id="submit-chat-button"
-                  >
-                    <Send className="w-4.5 h-4.5" />
-                  </button>
-                </form>
+          {/* Attempts History */}
+          <div className="bg-white rounded-2xl p-5 border-2 border-[#eae4cd] play-card flex flex-col gap-3 shadow-sm flex-1">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-505 flex items-center gap-1.5">
+              <span>📊</span> Lịch sử các lượt học
+            </h3>
+            {attempts.length === 0 ? (
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                <p className="text-xs text-slate-400 italic">Chưa thực hiện xong lượt học nào. Hãy hoàn thành 5 Chặng để ghi danh nhé!</p>
               </div>
-            </section>
-          </>
-        )}
+            ) : (
+              <div className="space-y-3.5 overflow-y-auto max-h-[350px]">
+                {attempts.map((att, idx) => (
+                  <div key={att.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-1 text-xs shadow-xs">
+                    <div className="flex justify-between items-center font-bold">
+                      <span className="text-amber-800">Lượt học {attempts.length - idx}</span>
+                      <span className="text-emerald-600">{att.totalScore}đ / 480đ</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 flex justify-between">
+                      <span>{att.timestamp}</span>
+                      <span className="truncate max-w-[120px]">{att.studentInfo.name}</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1 text-[9px] text-slate-500 mt-2 border-t border-slate-250 pt-2 text-center">
+                      <div>C1: 100</div>
+                      <div>C2: {att.scores.stage2 * 10}</div>
+                      <div>C3: 100</div>
+                      <div>C4: {att.scores.stage4 * 10}</div>
+                      <div>C5: {att.scores.stage5 * 10}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
       </main>
+      )}
 
-      {/* Achievements Bảng Thành Tích Row footer panel */}
-      <footer className="bg-white border-t-2 border-[#eae4cd] py-5 px-6 mt-auto animate-fade-in" id="app-footer-achievements">
-        <div className="w-full">
-          <div className="flex items-center gap-2.5 mb-3.5">
-            <Trophy className="w-5.5 h-5.5 text-amber-500" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-              Bảng thành tích huy hiệu học tập của bé
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {achievements.map((ach) => (
-              <div
-                key={ach.id}
-                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 ${
-                  ach.unlocked
-                    ? "bg-[#faf9f3] border-[#fbbf24] text-[#2c251e] shadow-sm"
-                    : "bg-slate-50/50 border-[#f1ece1] text-slate-450"
-                }`}
-                id={`achievement-card-${ach.id}`}
-              >
-                <div className={`text-3xl p-1.5 bg-white rounded-lg border shadow-sm ${ach.unlocked ? "border-[#fbbf24]" : "border-slate-200"}`}>
-                  {ach.unlocked ? ach.emoji : "🔒"}
-                </div>
-                <div className="overflow-hidden">
-                  <h4 className="text-sm font-bold leading-tight truncate">
-                    {ach.title}
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-1 leading-normal truncate" title={ach.description}>
-                    {ach.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </footer>
-
-      {/* Floating Chat Button */}
-      {!isChatOpen && (
+      {/* Floating Hỏi BiBi Chat Toggle Drawer Button */}
+      {studentInfo && !isChatOpen && (
         <button
           onClick={() => {
             setIsChatOpen(true);
             setBeeExpression("happy");
           }}
-          className="fixed bottom-6 right-6 z-40 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-3.5 px-6 rounded-full border-2 border-amber-500 hover:border-amber-600 shadow-xl flex items-center gap-2.5 animate-bounce cursor-pointer transition-all duration-200 active:scale-95"
+          className="fixed bottom-6 right-6 z-40 bg-amber-400 hover:bg-amber-500 text-amber-955 font-bold py-3.5 px-6 rounded-full border-2 border-amber-500 hover:border-amber-600 shadow-xl flex items-center gap-2.5 animate-bounce cursor-pointer transition-all duration-200 active:scale-95"
           id="floating-chat-toggle-btn"
         >
           <span className="text-2xl animate-float">🐝</span>
           <span className="text-sm font-bold uppercase tracking-wider">Hỏi BiBi 💬</span>
         </button>
+      )}
+
+      {/* Chat sliding drawer viewport */}
+      {isChatOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-all duration-300"
+            onClick={() => setIsChatOpen(false)}
+          />
+          <section 
+            className="fixed right-0 top-0 h-full w-full sm:w-[480px] bg-white z-50 flex flex-col shadow-2xl animate-slide-in-right border-l-2 border-[#eae4cd]"
+            id="chat-workspace-section"
+          >
+            <div className="bg-[#faf9f3] p-4 border-b border-[#eae4cd] flex items-center justify-between gap-3" id="chat-header-panel">
+              <div className="flex items-center gap-3">
+                <div className="bg-white rounded-full p-1.5 border border-[#e5dfc3] shadow-sm">
+                  <BiBiBee expression={beeExpression} size={65} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-1.5">
+                    Trợ lý Ong Vàng BiBi 🐝
+                  </h3>
+                  <span className="text-xs inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Sẵn sàng giải đáp
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setMessages([
+                      {
+                        id: "welcome-reset",
+                        role: "assistant",
+                        content: `BiBi đã dọn dẹp bàn học sạch sẽ rồi nè! ${studentInfo ? studentInfo.name : "Bạn nhỏ"} có câu hỏi nào mới về nhị, nhụy hay bài học khoa học lớp 5 không? Hãy trò chuyện cùng BiBi nhé! 🐝🌻`,
+                        timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+                      },
+                    ]);
+                  }}
+                  title="Xóa lịch sử chat"
+                  className="p-1.5 text-slate-400 hover:text-slate-650 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  id="clear-chat-history-btn"
+                >
+                  <RotateCcw className="w-4.5 h-4.5" />
+                </button>
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  title="Đóng cửa sổ chat"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div
+              ref={chatContainerRef}
+              className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#fdfdfc]"
+              id="chat-messages-viewport"
+            >
+              {messages.map((msg) => {
+                const isAssistant = msg.role === "assistant";
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-start gap-2.5 ${isAssistant ? "justify-start" : "justify-end"}`}
+                    id={`chat-msg-row-${msg.id}`}
+                  >
+                    {isAssistant && (
+                      <div className="w-8 h-8 bg-amber-105 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1 flex-shrink-0">
+                        🐝
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[85%] rounded-2xl p-3.5 text-sm leading-relaxed ${
+                        isAssistant
+                          ? "bg-white border border-[#eae4cd] text-[#2c251e] rounded-tl-sm shadow-sm"
+                          : "bg-amber-400 text-amber-950 font-semibold rounded-tr-sm self-end"
+                      }`}
+                    >
+                      <div className="whitespace-pre-line prose max-w-none">
+                        {msg.content}
+                      </div>
+                      <span className="block text-[9px] text-slate-400 mt-1 text-right">
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {isSending && (
+                <div className="flex items-start gap-2.5 justify-start animate-pulse" id="bibi-typing-loader">
+                  <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-base border border-amber-300 mt-1">
+                    🐝
+                  </div>
+                  <div className="bg-white border border-[#eae4cd] rounded-2xl rounded-tl-sm p-3.5 text-sm text-slate-450">
+                    BiBi đang tìm mật hoa tri thức để trả lời bạn... 🐝✨
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {apiKeyError && (
+              <div className="px-4 py-2 bg-amber-50 border-y border-amber-200 text-xs text-amber-900 flex items-start gap-2" id="api-key-warning-card">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-xs">Chế độ Học Offline kích hoạt!</p>
+                  <p className="text-[11px] text-amber-800 leading-normal">
+                    Chưa cài đặt bí mật <strong>GEMINI_API_KEY</strong> nên BiBi đang dùng bộ câu trả lời thông minh được biên soạn sẵn từ SGK. {studentInfo ? studentInfo.name : "Bạn nhỏ"} vẫn thỏa sức hỏi đáp nhé!
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-[#faf9f3] border-t border-[#eae4cd] space-y-2.5" id="chat-controls-area">
+              <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" id="quick-questions-panel">
+                <span className="text-xs text-slate-400 font-bold flex-shrink-0 flex items-center gap-1 uppercase">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-500" /> Đố BiBi:
+                </span>
+                
+                {currentStage === 1 && (
+                  <>
+                    <button
+                      onClick={() => handleQuickQuestion("Nhị hoa và nhụy hoa khác nhau thế nào BiBi ơi?")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      Nhị vs Nhụy khác nhau gì? 🤔
+                    </button>
+                    <button
+                      onClick={() => handleQuickQuestion("Cánh hoa có vai trò gì trong sinh sản vậy BiBi?")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      Vai trò của Cánh hoa 🌸
+                    </button>
+                  </>
+                )}
+
+                {currentStage === 2 && (
+                  <>
+                    <button
+                      onClick={() => handleQuickQuestion("Tại sao hoa mướp lại là hoa đơn tính vậy BiBi?")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      Tại sao mướp là hoa đơn tính? 🥒
+                    </button>
+                    <button
+                      onClick={() => handleQuickQuestion("Cho tớ 3 ví dụ về hoa lưỡng tính phổ biến với!")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      3 ví dụ hoa lưỡng tính 🌺
+                    </button>
+                  </>
+                )}
+
+                {currentStage === 3 && (
+                  <>
+                    <button
+                      onClick={() => handleQuickQuestion("Quá trình thụ phấn diễn ra nhờ những gì hả BiBi?")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      Thụ phấn nhờ những ai? 💨
+                    </button>
+                    <button
+                      onClick={() => handleQuickQuestion("Sau khi thụ tinh thì hoa bưởi sẽ biến đổi thế nào?")}
+                      className="text-xs bg-white hover:bg-amber-100 border border-[#eae4cd] rounded-full px-3 py-1 text-slate-650 font-semibold whitespace-nowrap cursor-pointer"
+                    >
+                      Sự biến đổi sau thụ tinh 🍊
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex items-center gap-2"
+                id="bibi-chat-input-form"
+              >
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Nhập câu hỏi về bài học khoa học..."
+                  disabled={isSending}
+                  className="flex-1 bg-white border-2 border-[#eae4cd] focus:border-[#fbbf24] focus:outline-none rounded-xl px-3.5 py-2.5 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={isSending || !inputValue.trim()}
+                  className="bg-amber-400 hover:bg-amber-500 disabled:bg-slate-100 disabled:text-slate-400 text-amber-955 font-bold p-3 rounded-xl border-2 border-transparent disabled:border-transparent hover:border-amber-500 transition-colors cursor-pointer"
+                  id="submit-chat-button"
+                >
+                  <Send className="w-4.5 h-4.5" />
+                </button>
+              </form>
+            </div>
+          </section>
+        </>
       )}
     </div>
   );
