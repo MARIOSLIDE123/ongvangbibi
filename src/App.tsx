@@ -1300,36 +1300,38 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
                       </div>
                     </div>
 
-                    {/* Sorting action buttons */}
-                    <div className="flex gap-4 w-full max-w-sm mt-1">
+                    {/* Sorting action buttons or Next Button */}
+                    {currentFeedback ? (
                       <button
-                        onClick={() => handleGameChoice("luong_tinh")}
-                        disabled={!!currentFeedback || !!tossingTo}
-                        className={`flex-1 py-2.5 px-3 rounded-xl border-2 font-bold text-xs transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
-                          currentFeedback || tossingTo
-                            ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                            : "bg-amber-100 border-[#fbbf24] text-amber-950 hover:bg-amber-200 cursor-pointer shadow-sm active:translate-y-0.5"
-                        }`}
-                        id="choose-luong-tinh-btn"
+                        onClick={handleNextGameItem}
+                        className="w-full max-w-sm py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl border-2 border-emerald-600 shadow-md cursor-pointer text-center text-sm uppercase tracking-wider animate-pulse active:translate-y-0.5"
+                        id="stage2-next-item-btn"
                       >
-                        <span className="text-base">🌸 Lưỡng Tính</span>
-                        <span className="text-[9px] text-amber-800 uppercase tracking-wide">Ném vào giỏ trái</span>
+                        Tiếp theo ➔
                       </button>
+                    ) : (
+                      <div className="flex gap-4 w-full max-w-sm mt-1">
+                        <button
+                          onClick={() => handleGameChoice("luong_tinh")}
+                          disabled={!!tossingTo}
+                          className={`flex-1 py-2.5 px-3 rounded-xl border-2 font-bold text-xs transition-all duration-200 flex flex-col items-center justify-center gap-0.5 bg-amber-100 border-[#fbbf24] text-amber-950 hover:bg-amber-200 cursor-pointer shadow-sm active:translate-y-0.5`}
+                          id="choose-luong-tinh-btn"
+                        >
+                          <span className="text-base">🌸 Lưỡng Tính</span>
+                          <span className="text-[9px] text-amber-800 uppercase tracking-wide">Ném vào giỏ trái</span>
+                        </button>
 
-                      <button
-                        onClick={() => handleGameChoice("don_tinh")}
-                        disabled={!!currentFeedback || !!tossingTo}
-                        className={`flex-1 py-2.5 px-3 rounded-xl border-2 font-bold text-xs transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
-                          currentFeedback || tossingTo
-                            ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                            : "bg-sky-100 border-sky-300 text-sky-950 hover:bg-sky-200 cursor-pointer shadow-sm active:translate-y-0.5"
-                        }`}
-                        id="choose-don-tinh-btn"
-                      >
-                        <span className="text-base">🌼 Đơn Tính</span>
-                        <span className="text-[9px] text-sky-800 uppercase tracking-wide">Ném vào giỏ phải</span>
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => handleGameChoice("don_tinh")}
+                          disabled={!!tossingTo}
+                          className={`flex-1 py-2.5 px-3 rounded-xl border-2 font-bold text-xs transition-all duration-200 flex flex-col items-center justify-center gap-0.5 bg-sky-100 border-sky-300 text-sky-950 hover:bg-sky-200 cursor-pointer shadow-sm active:translate-y-0.5`}
+                          id="choose-don-tinh-btn"
+                        >
+                          <span className="text-base">🌼 Đơn Tính</span>
+                          <span className="text-[9px] text-sky-800 uppercase tracking-wide">Ném vào giỏ phải</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // Game complete / summary screen
