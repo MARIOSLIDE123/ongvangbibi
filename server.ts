@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
@@ -63,7 +63,7 @@ Mọi câu trả lời của bạn phải tuân theo cấu trúc 4 phần sau đ
 `;
 
 // Chat API Endpoint
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", async (req: Request, res: Response) => {
   try {
     const { messages, currentStage } = req.body;
     if (!messages || !Array.isArray(messages)) {
@@ -129,7 +129,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
