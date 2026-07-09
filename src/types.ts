@@ -38,3 +38,33 @@ export interface Achievement {
   unlocked: boolean;
   emoji: string;
 }
+
+export interface StudentInfo {
+  name: string;
+  className: string;
+  school: string;
+}
+
+export interface Attempt {
+  id: string;
+  timestamp: string;
+  studentInfo: StudentInfo;
+  scores: {
+    stage1: number;
+    stage2: number;
+    stage3: number;
+    stage4: number;
+    stage5: number;
+  };
+  totalScore: number;
+}
+
+export interface QuizQuestion {
+  id: number;
+  type: "single" | "multiple" | "fill" | "select";
+  question: string;
+  options?: string[];
+  correctAnswer: string | string[];
+  explanation: string;
+  placeholder?: string;
+}
