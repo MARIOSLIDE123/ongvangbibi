@@ -775,9 +775,10 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
               onSubmit={(e) => {
                 e.preventDefault();
                 const form = e.currentTarget;
-                const name = (form.elements.namedItem("studentName") as HTMLInputElement).value;
-                const className = (form.elements.namedItem("studentClass") as HTMLInputElement).value;
-                const school = (form.elements.namedItem("studentSchool") as HTMLInputElement).value;
+                const formData = new FormData(form);
+                const name = (formData.get("studentName") as string) || "";
+                const className = (formData.get("studentClass") as string) || "";
+                const school = (formData.get("studentSchool") as string) || "";
                 if (name.trim() && className.trim() && school.trim()) {
                   setStudentInfo({ name: name.trim(), className: className.trim(), school: school.trim() });
                   playSynthSound("complete");
@@ -1986,9 +1987,9 @@ Cùng BiBi bay cao, học mau nhớ lâu! 🐝`;
               <span>👤</span> Góc học tập của em
             </h3>
             <div className="p-3 bg-[#faf9f3] rounded-xl border border-amber-100 flex flex-col gap-1">
-              <p className="text-sm font-bold text-amber-955 truncate">{studentInfo.name}</p>
-              <p className="text-xs text-slate-500 truncate">Lớp: {studentInfo.className}</p>
-              <p className="text-xs text-slate-500 truncate">Trường: {studentInfo.school}</p>
+              <p className="text-sm font-bold text-amber-955 truncate">{studentInfo?.name}</p>
+              <p className="text-xs text-slate-500 truncate">Lớp: {studentInfo?.className}</p>
+              <p className="text-xs text-slate-500 truncate">Trường: {studentInfo?.school}</p>
             </div>
             <button
               onClick={() => {
