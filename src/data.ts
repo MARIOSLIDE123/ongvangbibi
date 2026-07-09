@@ -1,4 +1,4 @@
-import { FlowerPart, FlowerGameItem, LessonStage, Achievement } from "./types";
+import { FlowerPart, FlowerGameItem, LessonStage, Achievement, QuizQuestion } from "./types";
 
 export const FLOWER_PARTS: FlowerPart[] = [
   {
