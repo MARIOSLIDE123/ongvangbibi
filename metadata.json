@@ -1,0 +1,6 @@
+{
+  "name": "Chú Ong Vàng BiBi",
+  "description": "Trợ lý học tập tương tác Khoa học lớp 5: Sinh sản của thực vật có hoa cùng chú Ong Vàng BiBi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
